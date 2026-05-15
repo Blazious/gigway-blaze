@@ -1,0 +1,34 @@
+[
+  {
+    "id": 1,
+    "project_type": "web_development",
+    "issue": "Incomplete features",
+    "resolution": "partial_refund",
+    "percentage": 30,
+    "reasoning": [
+      "Core functionality delivered",
+      "Missing secondary features"
+    ]
+  },
+  {
+    "id": 2,
+    "project_type": "graphic_design",
+    "issue": "Quality mismatch",
+    "resolution": "full_refund",
+    "percentage": 100,
+    "reasoning": [
+      "Designs didn't match brief",
+      "Client provided clear references"
+    ]
+  },
+  {
+    "id": 3,
+    "project_type": "copywriting",
+    "issue": "Late delivery",
+    "resolution": "release_full",
+    "reasoning": [
+      "Content met all requirements",
+      "Delay was minimal (2 days)"
+    ]
+  }
+]

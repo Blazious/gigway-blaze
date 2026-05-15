@@ -1,0 +1,8 @@
+Performing system checks...
+
+System check identified no issues (0 silenced).
+May 15, 2026 - 14:19:23
+Django version 4.2, using settings 'escrow_platform.settings'
+Starting development server at http://127.0.0.1:8000/
+Quit the server with CTRL-BREAK.
+

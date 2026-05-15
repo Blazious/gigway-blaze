@@ -1,0 +1,6 @@
+
+--- 2026-01-26 14:46:42.988091+00:00 RELEASE CALLBACK ---
+{"Result":{"ResultType":0,"ResultCode":2001,"ResultDesc":"The initiator information is invalid.","OriginatorConversationID":"8f38-40cb-81b4-d74124f1cf1b14301","ConversationID":"AG_20260126_01001023121evqglwxey","TransactionID":"UAQ0000000","ReferenceData":{"ReferenceItem":{"Key":"QueueTimeoutURL","Value":"https:\/\/internalsandbox.safaricom.co.ke\/mpesa\/b2cresults\/v1\/submit"}}}}
+
+--- 2026-01-26 14:49:34.924126+00:00 RELEASE CALLBACK ---
+{"Result":{"ResultType":0,"ResultCode":2001,"ResultDesc":"The initiator information is invalid.","OriginatorConversationID":"4528-405d-bbed-3361b10cfd8e970","ConversationID":"AG_20260126_010010221253sm3pt0pg","TransactionID":"UAQ0000000","ReferenceData":{"ReferenceItem":{"Key":"QueueTimeoutURL","Value":"https:\/\/internalsandbox.safaricom.co.ke\/mpesa\/b2cresults\/v1\/submit"}}}}
