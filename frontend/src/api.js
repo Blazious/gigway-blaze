@@ -1,8 +1,24 @@
 import axios from 'axios';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+
 const api = axios.create({
-    baseURL: '/api', // Vite proxy will handle this
+    baseURL: API_BASE_URL,
 });
+
+export const getMediaUrl = (path) => {
+    if (!path) return '';
+    if (/^https?:\/\//i.test(path)) return path;
+
+    const normalizedPath = String(path).replace(/^\/?(media\/)?/, '');
+
+    if (API_BASE_URL.startsWith('http')) {
+        const apiUrl = new URL(API_BASE_URL);
+        return `${apiUrl.origin}/media/${normalizedPath}`;
+    }
+
+    return `/media/${normalizedPath}`;
+};
 
 // Add a request interceptor to attach the token if it exists
 api.interceptors.request.use(

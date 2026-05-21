@@ -31,6 +31,31 @@ stop-dev.cmd
 
 The launcher uses `npm.cmd`, so it avoids the common PowerShell `npm.ps1` execution-policy error.
 
+## Deploy Frontend To Vercel
+
+Deploy the Vite frontend as its own Vercel project:
+
+- Framework preset: `Vite`
+- Root directory: `frontend`
+- Install command: `npm install`
+- Build command: `npm run build`
+- Output directory: `dist`
+
+Add these Vercel environment variables:
+
+```env
+VITE_API_BASE_URL=https://your-backend-domain.com/api
+VITE_GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+```
+
+`VITE_API_BASE_URL` must point to the deployed Django backend, not `127.0.0.1`. Keep the `/api` suffix.
+
+After Vercel gives you a frontend URL, add it to the Django backend CORS/CSRF allowed origins and to any OAuth redirect settings. The Google redirect URI should be:
+
+```text
+https://your-vercel-app.vercel.app/auth/google/callback
+```
+
 ## Manual Setup
 
 1. Install frontend dependencies:

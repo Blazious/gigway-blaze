@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2, Upload, FileText, CheckCircle, XCircle, AlertCircle, Download, Link as LinkIcon, AlignLeft } from 'lucide-react';
-import { getDeliverables, submitDeliverable, approveDeliverable, rejectDeliverable, getEscrowStatus } from '../../api';
+import { getDeliverables, submitDeliverable, approveDeliverable, rejectDeliverable, getEscrowStatus, getMediaUrl } from '../../api';
 
 const DeliverableTab = ({ projectId, project, onDeliverableUpdate }) => {
     const [deliverables, setDeliverables] = useState([]);
@@ -527,7 +527,7 @@ const DeliverableTab = ({ projectId, project, onDeliverableUpdate }) => {
                                 {/* Render Work Based on Type */}
                                 {deliverable.submission_type === 'file' && deliverable.file_url && (
                                     <a
-                                        href={`/media/${deliverable.file_url}`}
+                                        href={getMediaUrl(deliverable.file_url)}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="btn"
