@@ -1,0 +1,233 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Loader2, ArrowLeft, FileText, ShieldCheck, Briefcase } from 'lucide-react';
+import { getProject } from '../../api';
+import ContractTab from './ContractTab';
+import DeliverableTab from './DeliverableTab';
+import ApplyModal from './ApplyModal';
+import ProposalsList from './ProposalsList';
+
+const ProjectDetails = () => {
+    const { id } = useParams();
+    const navigate = useNavigate();
+    const [project, setProject] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState('overview');
+    const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
+
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const isClient = user.user_type === 'client';
+    const isOwner = isClient && project && project.client === user.id; // Note: You might need to adjust user.id match if API returns object or just ID
+
+    useEffect(() => {
+        fetchProjectDetails();
+    }, [id]);
+
+    const fetchProjectDetails = async () => {
+        try {
+            const data = await getProject(id);
+            setProject(data);
+        } catch (error) {
+            console.error("Failed to fetch project details", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    if (isLoading) {
+        return (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '4rem' }}>
+                <Loader2 className="animate-spin" size={40} color="var(--primary)" />
+            </div>
+        );
+    }
+
+    if (!project) {
+        return <div style={{ padding: '2rem', textAlign: 'center' }}>Project not found.</div>;
+    }
+
+    return (
+        <div>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
+                <button
+                    onClick={() => navigate(-1)}
+                    style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '0.5rem' }}
+                >
+                    <ArrowLeft size={24} />
+                </button>
+                <div>
+                    <h2 className="section-title" style={{ margin: 0, textAlign: 'left' }}>{project.title}</h2>
+                    <span style={{
+                        fontSize: '0.85rem',
+                        color: 'var(--text-secondary)'
+                    }}>
+                        Posted by {project.client_name || 'Client'}
+                    </span>
+                </div>
+            </div>
+
+            {/* Tabs */}
+            <div style={{
+                display: 'flex',
+                gap: '2rem',
+                borderBottom: '1px solid var(--glass-border)',
+                marginBottom: '2rem',
+                paddingBottom: '0.5rem'
+            }}>
+                <button
+                    onClick={() => setActiveTab('overview')}
+                    style={{
+                        background: 'none',
+                        border: 'none',
+                        color: activeTab === 'overview' ? 'var(--primary)' : 'var(--text-secondary)',
+                        fontWeight: activeTab === 'overview' ? 'bold' : 'normal',
+                        padding: '0.5rem 0',
+                        cursor: 'pointer',
+                        position: 'relative',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem'
+                    }}
+                >
+                    <Briefcase size={18} /> Overview
+                    {activeTab === 'overview' && (
+                        <div style={{ position: 'absolute', bottom: '-0.6rem', left: 0, width: '100%', height: '2px', background: 'var(--primary)' }} />
+                    )}
+                </button>
+
+                <button
+                    onClick={() => setActiveTab('contract')}
+                    style={{
+                        background: 'none',
+                        border: 'none',
+                        color: activeTab === 'contract' ? 'var(--primary)' : 'var(--text-secondary)',
+                        fontWeight: activeTab === 'contract' ? 'bold' : 'normal',
+                        padding: '0.5rem 0',
+                        cursor: 'pointer',
+                        position: 'relative',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem'
+                    }}
+                >
+                    <ShieldCheck size={18} /> Contract
+                    {activeTab === 'contract' && (
+                        <div style={{ position: 'absolute', bottom: '-0.6rem', left: 0, width: '100%', height: '2px', background: 'var(--primary)' }} />
+                    )}
+                </button>
+
+                <button
+                    onClick={() => setActiveTab('deliverables')}
+                    style={{
+                        background: 'none',
+                        border: 'none',
+                        color: activeTab === 'deliverables' ? 'var(--primary)' : 'var(--text-secondary)',
+                        fontWeight: activeTab === 'deliverables' ? 'bold' : 'normal',
+                        padding: '0.5rem 0',
+                        cursor: 'pointer',
+                        position: 'relative',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem'
+                    }}
+                >
+                    <FileText size={18} /> Deliverables
+                    {activeTab === 'deliverables' && (
+                        <div style={{ position: 'absolute', bottom: '-0.6rem', left: 0, width: '100%', height: '2px', background: 'var(--primary)' }} />
+                    )}
+                </button>
+
+                {/* Proposals Tab for Clients */}
+                {isClient && (
+                    <button
+                        onClick={() => setActiveTab('proposals')}
+                        style={{
+                            background: 'none',
+                            border: 'none',
+                            color: activeTab === 'proposals' ? 'var(--primary)' : 'var(--text-secondary)',
+                            fontWeight: activeTab === 'proposals' ? 'bold' : 'normal',
+                            padding: '0.5rem 0',
+                            cursor: 'pointer',
+                            position: 'relative',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem'
+                        }}
+                    >
+                        <Briefcase size={18} /> Proposals
+                        {activeTab === 'proposals' && (
+                            <div style={{ position: 'absolute', bottom: '-0.6rem', left: 0, width: '100%', height: '2px', background: 'var(--primary)' }} />
+                        )}
+                    </button>
+                )}
+            </div>
+
+            {/* Tab Content */}
+            <div style={{ textAlign: 'left' }}>
+                {activeTab === 'overview' && (
+                    <div style={{ animation: 'fadeIn 0.3s ease-in-out' }}>
+                        <div className="feature-card" style={{ marginBottom: '2rem' }}>
+                            <h3 style={{ fontSize: '1.25rem', marginBottom: '1rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem' }}>Description</h3>
+                            <p style={{ lineHeight: '1.6', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>{project.description}</p>
+                        </div>
+
+                        <div className="feature-card">
+                            <h3 style={{ fontSize: '1.25rem', marginBottom: '1rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem' }}>Details</h3>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
+                                <div>
+                                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Budget</div>
+                                    <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#10b981' }}>KES {parseFloat(project.budget).toLocaleString()}</div>
+                                </div>
+                                <div>
+                                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Status</div>
+                                    <div style={{ textTransform: 'capitalize' }}>{project.status.replace('_', ' ')}</div>
+                                </div>
+                                <div>
+                                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Timeline</div>
+                                    <div>{project.timeline || 'Not specified'}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Apply Button for Freelancers */}
+                        {!isClient && project.status === 'open' && (
+                            <button
+                                className="btn btn-primary"
+                                style={{ marginTop: '2rem', width: '100%' }}
+                                onClick={() => setIsApplyModalOpen(true)}
+                            >
+                                Apply for this Job
+                            </button>
+                        )}
+                    </div>
+                )}
+
+                {activeTab === 'contract' && (
+                    <ContractTab projectId={id} />
+                )}
+
+                {activeTab === 'deliverables' && (
+                    <DeliverableTab
+                        projectId={id}
+                        project={project}
+                        onDeliverableUpdate={fetchProjectDetails}
+                    />
+                )}
+
+                {activeTab === 'proposals' && (
+                    <ProposalsList projectId={id} />
+                )}
+            </div>
+
+            <ApplyModal
+                isOpen={isApplyModalOpen}
+                onClose={() => setIsApplyModalOpen(false)}
+                project={project}
+                onSuccess={() => alert("Proposal submitted successfully!")}
+            />
+        </div>
+    );
+};
+
+export default ProjectDetails;
