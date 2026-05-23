@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Calendar, Eye, Trash2, X } from 'lucide-react';
+import { Calendar, Eye, Trash2, X } from 'lucide-react';
 import { deleteProject, getProjects } from '../../api';
+import GigWayLoader from '../../components/GigWayLoader';
 
 const MyProjects = () => {
     const navigate = useNavigate();
@@ -65,9 +66,7 @@ const MyProjects = () => {
             <h2 className="section-title" style={{ textAlign: 'left', marginBottom: '1.5rem' }}>My Projects</h2>
 
             {isLoading ? (
-                <div style={{ display: 'flex', justifyContent: 'center', padding: '4rem' }}>
-                    <Loader2 className="animate-spin" size={40} color="var(--primary)" />
-                </div>
+                <GigWayLoader label="Loading your projects" />
             ) : projects.length === 0 ? (
                 <div className="empty-state">
                     <p>You don't have any active projects yet.</p>

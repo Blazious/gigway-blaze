@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, DollarSign, Clock, CheckCircle } from 'lucide-react';
+import { DollarSign, Clock, CheckCircle } from 'lucide-react';
 import { getWallet } from '../../api';
+import GigWayLoader from '../../components/GigWayLoader';
 
 const Wallet = () => {
     const [walletData, setWalletData] = useState(null);
@@ -22,11 +23,7 @@ const Wallet = () => {
     };
 
     if (isLoading) {
-        return (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '4rem' }}>
-                <Loader2 className="animate-spin" size={40} color="var(--primary)" />
-            </div>
-        );
+        return <GigWayLoader label="Loading wallet" />;
     }
 
     return (

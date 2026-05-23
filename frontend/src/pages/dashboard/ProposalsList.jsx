@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2, CheckCircle, User, ShieldCheck, AlertTriangle, ExternalLink } from 'lucide-react';
 import { getProposals, acceptProposal } from '../../api';
+import GigWayLoader from '../../components/GigWayLoader';
 
 const ProposalsList = ({ projectId }) => {
     const [proposals, setProposals] = useState([]);
@@ -67,7 +68,7 @@ const ProposalsList = ({ projectId }) => {
         };
     };
 
-    if (isLoading) return <div style={{ textAlign: 'center', padding: '2rem' }}><Loader2 className="animate-spin" /></div>;
+    if (isLoading) return <GigWayLoader label="Loading proposals" compact />;
 
     if (proposals.length === 0) {
         return (

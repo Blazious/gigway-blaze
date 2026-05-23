@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { socialAuth } from '../api';
-import { Loader2 } from 'lucide-react';
+import GigWayLoader from '../components/GigWayLoader';
 
 const buildAuthError = (err) => {
     const data = err.response?.data;
@@ -93,10 +93,7 @@ const GoogleCallback = () => {
                     <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Redirecting to login...</p>
                 </>
             ) : (
-                <>
-                    <Loader2 className="animate-spin" size={32} style={{ marginBottom: '1rem' }} />
-                    <p>Processing Google login...</p>
-                </>
+                <GigWayLoader label="Processing Google login" compact />
             )}
         </div>
     );

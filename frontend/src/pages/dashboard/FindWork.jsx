@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Search, Eye, X, ShieldCheck } from 'lucide-react';
+import { Search, Eye, X, ShieldCheck } from 'lucide-react';
 import { getProjects } from '../../api';
+import GigWayLoader from '../../components/GigWayLoader';
 
 const FindWork = () => {
     const navigate = useNavigate();
@@ -120,9 +121,7 @@ const FindWork = () => {
             </div>
 
             {isLoading ? (
-                <div style={{ display: 'flex', justifyContent: 'center', padding: '4rem' }}>
-                    <Loader2 className="animate-spin" size={40} color="var(--primary)" />
-                </div>
+                <GigWayLoader label="Finding fresh gigs" />
             ) : projects.length === 0 ? (
                 <div className="empty-state">
                     <p>No projects found matching your criteria.</p>

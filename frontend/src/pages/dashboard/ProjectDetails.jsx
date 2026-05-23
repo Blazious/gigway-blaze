@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2, ArrowLeft, FileText, ShieldCheck, Briefcase, Star } from 'lucide-react';
 import { getProject, submitProjectReview } from '../../api';
+import GigWayLoader from '../../components/GigWayLoader';
 import ContractTab from './ContractTab';
 import DeliverableTab from './DeliverableTab';
 import ApplyModal from './ApplyModal';
@@ -81,11 +82,7 @@ const ProjectDetails = () => {
     );
 
     if (isLoading) {
-        return (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '4rem' }}>
-                <Loader2 className="animate-spin" size={40} color="var(--primary)" />
-            </div>
-        );
+        return <GigWayLoader label="Opening project workspace" />;
     }
 
     if (!project) {

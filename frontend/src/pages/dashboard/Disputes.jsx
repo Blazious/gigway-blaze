@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Loader2, MessageSquare, AlertTriangle, Send, Bot, User, ChevronRight, Gavel, FileText } from 'lucide-react';
 import { getProjects, getLexaChatResponse } from '../../api';
+import GigWayLoader from '../../components/GigWayLoader';
 
 const Disputes = () => {
     const [projects, setProjects] = useState([]);
@@ -65,7 +66,7 @@ const Disputes = () => {
         }
     };
 
-    if (isLoading) return <div style={{ display: 'flex', justifyContent: 'center', padding: '4rem' }}><Loader2 className="animate-spin" size={40} color="var(--primary)" /></div>;
+    if (isLoading) return <GigWayLoader label="Loading dispute workspace" />;
 
     return (
         <div style={{ display: 'grid', gridTemplateColumns: '350px 1fr', gap: '2rem', height: 'calc(100vh - 200px)', animation: 'fadeIn 0.5s ease-out' }}>

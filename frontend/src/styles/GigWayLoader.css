@@ -1,0 +1,85 @@
+.gigway-loader {
+    min-height: 220px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.7rem;
+    color: var(--text-primary);
+}
+
+.gigway-loader.compact {
+    min-height: 120px;
+}
+
+.gigway-loader-mark {
+    position: relative;
+    width: 76px;
+    height: 76px;
+    display: grid;
+    place-items: center;
+    color: var(--primary);
+}
+
+.gigway-loader.compact .gigway-loader-mark {
+    width: 58px;
+    height: 58px;
+}
+
+.gigway-loader-orbit {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 2px solid rgba(249, 115, 22, 0.14);
+    border-top-color: var(--primary);
+    border-right-color: var(--success);
+    animation: gigwayOrbit 1s linear infinite;
+}
+
+.gigway-loader-mark::after {
+    content: '';
+    position: absolute;
+    inset: 13px;
+    border-radius: 50%;
+    background: var(--primary-glow);
+    animation: gigwayPulse 1.6s ease-in-out infinite;
+}
+
+.gigway-loader-mark svg {
+    position: relative;
+    z-index: 1;
+}
+
+.gigway-loader-word {
+    font-weight: 900;
+    font-size: 1.2rem;
+    letter-spacing: 0;
+}
+
+.gigway-loader-word span {
+    color: var(--primary);
+}
+
+.gigway-loader p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+@keyframes gigwayOrbit {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes gigwayPulse {
+    0%, 100% {
+        transform: scale(0.9);
+        opacity: 0.45;
+    }
+
+    50% {
+        transform: scale(1.05);
+        opacity: 0.8;
+    }
+}

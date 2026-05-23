@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2, Upload, FileText, CheckCircle, XCircle, AlertCircle, Download, Link as LinkIcon, AlignLeft } from 'lucide-react';
 import { getDeliverables, submitDeliverable, approveDeliverable, rejectDeliverable, getEscrowStatus, downloadDeliverableFile } from '../../api';
+import GigWayLoader from '../../components/GigWayLoader';
 
 const DeliverableTab = ({ projectId, project, onDeliverableUpdate }) => {
     const [deliverables, setDeliverables] = useState([]);
@@ -263,11 +264,7 @@ const DeliverableTab = ({ projectId, project, onDeliverableUpdate }) => {
     const actuallyCanSubmit = isFreelancer && fundsHeld && projectAllowsSubmission;
 
     if (isLoading) {
-        return (
-            <div style={{ padding: '2rem', textAlign: 'center' }}>
-                <Loader2 className="animate-spin" size={32} />
-            </div>
-        );
+        return <GigWayLoader label="Loading deliverables" compact />;
     }
 
     return (
