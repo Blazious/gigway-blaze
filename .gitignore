@@ -84,3 +84,4 @@ celerybeat-schedule
 celerybeat.pid
 instance/
 /.sass-cache/
+local-backups/
