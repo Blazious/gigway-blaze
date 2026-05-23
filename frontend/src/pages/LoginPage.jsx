@@ -79,8 +79,12 @@ const LoginPage = () => {
                 return;
             }
 
-            // Store current location to return after auth
-            localStorage.setItem('socialAuthReturn', window.location.pathname);
+            // Return to a real app page after auth. Do not bounce back to auth pages.
+            const currentPath = window.location.pathname;
+            const returnPath = ['/login', '/register', '/auth/google/callback'].includes(currentPath)
+                ? '/dashboard'
+                : currentPath;
+            localStorage.setItem('socialAuthReturn', returnPath);
 
             // Use Google OAuth2 redirect flow
             const redirectUri = `${window.location.origin}/auth/google/callback`;

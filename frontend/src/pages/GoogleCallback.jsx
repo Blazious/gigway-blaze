@@ -57,7 +57,10 @@ const GoogleCallback = () => {
                     localStorage.setItem('user', JSON.stringify(data.user));
                     
                     // Redirect to dashboard or return location
-                    const returnPath = localStorage.getItem('socialAuthReturn') || '/dashboard';
+                    const storedReturnPath = localStorage.getItem('socialAuthReturn');
+                    const returnPath = storedReturnPath && !['/login', '/register', '/auth/google/callback'].includes(storedReturnPath)
+                        ? storedReturnPath
+                        : '/dashboard';
                     localStorage.removeItem('socialAuthReturn');
                     navigate(returnPath);
                 } else {
