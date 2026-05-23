@@ -85,13 +85,14 @@ const LoginPage = () => {
             // Use Google OAuth2 redirect flow
             const redirectUri = `${window.location.origin}/auth/google/callback`;
             const scope = 'openid email profile';
-            const responseType = 'token';
+            const responseType = 'code';
 
             const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
                 `client_id=${clientId}&` +
                 `redirect_uri=${encodeURIComponent(redirectUri)}&` +
                 `response_type=${responseType}&` +
                 `scope=${encodeURIComponent(scope)}&` +
+                `access_type=offline&` +
                 `prompt=select_account`;
 
             // Redirect to Google OAuth

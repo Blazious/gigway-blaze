@@ -5,7 +5,12 @@ import { Loader2 } from 'lucide-react';
 
 const buildAuthError = (err) => {
     const data = err.response?.data;
-    if (!data) return 'Authentication failed';
+    if (!data) {
+        if (err.request) {
+            return 'Backend did not respond. Check Vercel VITE_API_BASE_URL and Railway CORS settings.';
+        }
+        return err.message || 'Authentication failed';
+    }
     if (typeof data === 'string') return data;
     if (data.error) return data.error;
     const firstField = Object.values(data).flat?.()[0];
@@ -60,8 +65,9 @@ const GoogleCallback = () => {
                     setTimeout(() => navigate('/login'), 3000);
                 }
             } catch (err) {
+                console.error('Google authentication failed', err);
                 setError(buildAuthError(err));
-                setTimeout(() => navigate('/login'), 3000);
+                setTimeout(() => navigate('/login'), 8000);
             }
         };
 
