@@ -20,6 +20,7 @@ from core.views import (
 from core.workflow_views import (
     ContractSignView, EscrowDepositInitiateView, 
     DeliverableSubmissionView, DeliverableReviewView,
+    DeliverableDownloadView,
     WorkflowMpesaDepositCallbackView, WorkflowMpesaReleaseCallbackView,
     EscrowStatusView
 )
@@ -74,6 +75,7 @@ urlpatterns = [
     path('api/deliverables/', DeliverableView.as_view(), name='deliverable-list'), # List
     path('api/deliverables/<uuid:project_id>/', DeliverableView.as_view(), name='project-deliverables'), # List for project
     path('api/contract/<uuid:contract_id>/submit-deliverable/', DeliverableSubmissionView.as_view(), name='submit-deliverable'), # New: Submit
+    path('api/deliverables/<uuid:deliverable_id>/download/', DeliverableDownloadView.as_view(), name='download-deliverable'), # Authenticated file download
     path('api/deliverables/<uuid:deliverable_id>/review/', DeliverableReviewView.as_view(), name='review-deliverable'), # New: Approve/Reject
 
     # Disputes

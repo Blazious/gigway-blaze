@@ -161,6 +161,13 @@ export const getDeliverables = async (projectId) => {
     return response.data;
 };
 
+export const downloadDeliverableFile = async (deliverableId) => {
+    const response = await api.get(`/deliverables/${deliverableId}/download/`, {
+        responseType: 'blob'
+    });
+    return response;
+};
+
 // Updated: Single review endpoint
 export const approveDeliverable = async (deliverableId, confirmationCode = null) => {
     const payload = { action: 'approve' };

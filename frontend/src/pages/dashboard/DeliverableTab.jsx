@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2, Upload, FileText, CheckCircle, XCircle, AlertCircle, Download, Link as LinkIcon, AlignLeft } from 'lucide-react';
-import { getDeliverables, submitDeliverable, approveDeliverable, rejectDeliverable, getEscrowStatus, getMediaUrl } from '../../api';
+import { getDeliverables, submitDeliverable, approveDeliverable, rejectDeliverable, getEscrowStatus, downloadDeliverableFile } from '../../api';
 
 const DeliverableTab = ({ projectId, project, onDeliverableUpdate }) => {
     const [deliverables, setDeliverables] = useState([]);
@@ -216,6 +216,41 @@ const DeliverableTab = ({ projectId, project, onDeliverableUpdate }) => {
         } catch (error) {
             console.error('Failed to reject deliverable', error);
             alert(error.response?.data?.error || 'Failed to reject deliverable. Please try again.');
+        }
+    };
+
+    const getDownloadFilename = (deliverable, response) => {
+        const disposition = response.headers?.['content-disposition'] || '';
+        const match = disposition.match(/filename="?([^"]+)"?/i);
+        if (match?.[1]) return match[1];
+        const rawPath = deliverable.file_url || 'deliverable-file';
+        return rawPath.split('/').pop() || 'deliverable-file';
+    };
+
+    const handleDownload = async (deliverable) => {
+        try {
+            const response = await downloadDeliverableFile(deliverable.id);
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = getDownloadFilename(deliverable, response);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            const blobText = error.response?.data instanceof Blob
+                ? await error.response.data.text()
+                : '';
+            let message = error.response?.data?.error || 'Could not download this deliverable.';
+            if (blobText) {
+                try {
+                    message = JSON.parse(blobText).error || message;
+                } catch {
+                    message = blobText;
+                }
+            }
+            alert(message);
         }
     };
 
@@ -526,10 +561,9 @@ const DeliverableTab = ({ projectId, project, onDeliverableUpdate }) => {
 
                                 {/* Render Work Based on Type */}
                                 {deliverable.submission_type === 'file' && deliverable.file_url && (
-                                    <a
-                                        href={getMediaUrl(deliverable.file_url)}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
+                                    <button
+                                        type="button"
+                                        onClick={() => handleDownload(deliverable)}
                                         className="btn"
                                         style={{
                                             display: 'inline-flex',
@@ -544,7 +578,7 @@ const DeliverableTab = ({ projectId, project, onDeliverableUpdate }) => {
                                     >
                                         <Download size={16} />
                                         Download File
-                                    </a>
+                                    </button>
                                 )}
 
                                 {deliverable.submission_type === 'link' && deliverable.file_url && (

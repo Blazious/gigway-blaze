@@ -9,6 +9,7 @@ requests
 pyngrok
 python-dotenv
 Pillow
+cloudinary==1.44.1
 google-genai==1.52.0
 requests-oauthlib
 cryptography

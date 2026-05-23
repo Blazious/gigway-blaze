@@ -2,9 +2,11 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
+from django.http import FileResponse, StreamingHttpResponse
 from django.utils import timezone
 from django.conf import settings
 from django.db import transaction
+from django.core.files.storage import default_storage
 from core.authentication import JWTAuthentication
 from core.models import Project, Contract, Escrow, Deliverable
 from core.serializers import (
@@ -24,9 +26,54 @@ from core.notification_service import (
 import logging
 import os
 import json
+import mimetypes
+import requests
 from core.utils import format_phone_number
 
 logger = logging.getLogger(__name__)
+
+
+def _cloudinary_enabled():
+    return bool(os.getenv('CLOUDINARY_URL', '').strip())
+
+
+def _upload_deliverable_file(uploaded_file, contract):
+    filename = os.path.basename(uploaded_file.name)
+
+    if _cloudinary_enabled():
+        import cloudinary
+        import cloudinary.uploader
+
+        cloudinary.config(secure=True)
+        folder = os.getenv('CLOUDINARY_FOLDER', 'gigway/deliverables').strip('/ ')
+        upload_result = cloudinary.uploader.upload(
+            uploaded_file,
+            resource_type='auto',
+            folder=f"{folder}/{contract.id}",
+            use_filename=True,
+            unique_filename=True,
+        )
+        return {
+            'storage': 'cloudinary',
+            'file_url': upload_result.get('secure_url'),
+            'public_id': upload_result.get('public_id'),
+            'resource_type': upload_result.get('resource_type'),
+            'original_filename': filename,
+            'bytes': upload_result.get('bytes'),
+            'format': upload_result.get('format'),
+        }
+
+    from django.core.files.base import ContentFile
+
+    path = default_storage.save(
+        f"deliverables/{contract.id}/{filename}",
+        ContentFile(uploaded_file.read())
+    )
+    return {
+        'storage': 'local',
+        'file_url': path,
+        'original_filename': filename,
+    }
 
 
 def _sync_escrow_from_provider(escrow):
@@ -181,18 +228,13 @@ class DeliverableSubmissionView(APIView):
             file_url = request.data.get('file_url', '')
             content = request.data.get('content', '')
             
-            if uploaded_file:
-                import os
-                from django.core.files.storage import default_storage
-                from django.core.files.base import ContentFile
-                path = default_storage.save(f"deliverables/{contract.id}/{uploaded_file.name}", ContentFile(uploaded_file.read()))
-                file_url = path
-                
             data_to_store = {
                 'submission_type': submission_type,
                 'content': content,
                 'file_url': file_url
             }
+            if uploaded_file:
+                data_to_store.update(_upload_deliverable_file(uploaded_file, contract))
 
             deliverable = Deliverable.objects.create(
                 contract=contract,
@@ -311,6 +353,67 @@ class DeliverableReviewView(APIView):
 
         except Deliverable.DoesNotExist:
              return Response({'error': 'Deliverable not found'}, status=status.HTTP_404_NOT_FOUND)
+
+class DeliverableDownloadView(APIView):
+    authentication_classes = [JWTAuthentication]
+
+    def get(self, request, deliverable_id):
+        try:
+            deliverable = Deliverable.objects.get(id=deliverable_id)
+            contract = deliverable.contract
+
+            if request.user not in [contract.project.client, contract.project.freelancer]:
+                return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
+
+            try:
+                payload = json.loads(deliverable.file_paths or '{}')
+            except (TypeError, ValueError):
+                payload = {}
+
+            if payload.get('submission_type') != 'file':
+                return Response({'error': 'This deliverable is not a file upload.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            file_path = str(payload.get('file_url') or '').strip()
+            if not file_path:
+                return Response({'error': 'Deliverable file is missing.'}, status=status.HTTP_404_NOT_FOUND)
+
+            filename = payload.get('original_filename') or os.path.basename(file_path) or 'deliverable-file'
+            content_type = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
+
+            if payload.get('storage') == 'cloudinary':
+                upstream = requests.get(file_path, stream=True, timeout=20)
+                if upstream.status_code != 200:
+                    return Response(
+                        {'error': 'Cloud deliverable file could not be retrieved. Please try again shortly.'},
+                        status=status.HTTP_502_BAD_GATEWAY
+                    )
+                response = StreamingHttpResponse(
+                    upstream.iter_content(chunk_size=8192),
+                    content_type=upstream.headers.get('content-type') or content_type
+                )
+                response['Content-Disposition'] = f'attachment; filename="{filename}"'
+                content_length = upstream.headers.get('content-length')
+                if content_length:
+                    response['Content-Length'] = content_length
+                return response
+
+            if not default_storage.exists(file_path):
+                return Response(
+                    {
+                        'error': (
+                            'Deliverable file was not found on the server. If this was uploaded before persistent '
+                            'storage was configured, ask the freelancer to resubmit the file.'
+                        )
+                    },
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            response = FileResponse(default_storage.open(file_path, 'rb'), content_type=content_type)
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            return response
+
+        except Deliverable.DoesNotExist:
+            return Response({'error': 'Deliverable not found'}, status=status.HTTP_404_NOT_FOUND)
 
 class WorkflowMpesaDepositCallbackView(APIView):
     permission_classes = [AllowAny]
