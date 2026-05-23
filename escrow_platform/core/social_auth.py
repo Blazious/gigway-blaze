@@ -55,7 +55,14 @@ def exchange_google_code_for_token(code, redirect_uri):
         },
         timeout=10
     )
-    response.raise_for_status()
+    if response.status_code >= 400:
+        try:
+            error_body = response.json()
+        except ValueError:
+            error_body = response.text
+        logger.error("Google token exchange failed %s: %s", response.status_code, error_body)
+        raise Exception(f"Google token exchange failed ({response.status_code}): {error_body}")
+
     return response.json()
 
 def get_facebook_user_info(access_token):
