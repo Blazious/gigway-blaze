@@ -17,6 +17,11 @@ const buildAuthError = (err) => {
     return firstField || 'Authentication failed';
 };
 
+const returnToLoginWithError = (message) => {
+    sessionStorage.setItem('authError', message);
+    window.location.replace('/login');
+};
+
 const GoogleCallback = () => {
     const navigate = useNavigate();
     const [error, setError] = useState(null);
@@ -33,14 +38,12 @@ const GoogleCallback = () => {
                 const errorParam = params.get('error') || queryParams.get('error');
 
                 if (errorParam) {
-                    setError(`Google authentication failed: ${errorParam}`);
-                    setTimeout(() => navigate('/login'), 3000);
+                    returnToLoginWithError(`Google authentication failed: ${errorParam}`);
                     return;
                 }
 
                 if (!accessToken && !authCode) {
-                    setError('No Google credentials were received. Check the authorized redirect URI in Google Cloud.');
-                    setTimeout(() => navigate('/login'), 3000);
+                    returnToLoginWithError('No Google credentials were received. Check the authorized redirect URI in Google Cloud.');
                     return;
                 }
 
@@ -64,13 +67,11 @@ const GoogleCallback = () => {
                     localStorage.removeItem('socialAuthReturn');
                     window.location.replace(returnPath);
                 } else {
-                    setError('Failed to authenticate');
-                    setTimeout(() => navigate('/login'), 3000);
+                    returnToLoginWithError('Google authentication failed: backend did not return a token.');
                 }
             } catch (err) {
                 console.error('Google authentication failed', err);
-                setError(buildAuthError(err));
-                setTimeout(() => navigate('/login'), 8000);
+                returnToLoginWithError(buildAuthError(err));
             }
         };
 
