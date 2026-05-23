@@ -28,10 +28,15 @@ const LoginPage = () => {
     });
 
     useEffect(() => {
+        if (localStorage.getItem('token')) {
+            navigate('/dashboard', { replace: true });
+            return;
+        }
+
         if (location.state?.message) {
             setSuccessMsg(location.state.message);
         }
-    }, [location]);
+    }, [location, navigate]);
 
     const handleChange = (e) => {
         setFormData({

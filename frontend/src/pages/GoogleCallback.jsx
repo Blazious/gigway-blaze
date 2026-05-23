@@ -62,7 +62,7 @@ const GoogleCallback = () => {
                         ? storedReturnPath
                         : '/dashboard';
                     localStorage.removeItem('socialAuthReturn');
-                    navigate(returnPath);
+                    window.location.replace(returnPath);
                 } else {
                     setError('Failed to authenticate');
                     setTimeout(() => navigate('/login'), 3000);
