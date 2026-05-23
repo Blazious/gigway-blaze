@@ -547,10 +547,6 @@ class AcceptProposalView(APIView):
             proposal = Proposal.objects.get(id=proposal_id)
             if request.user != proposal.project.client:
                  return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
-            if proposal.verification_status != 'verified':
-                return Response({
-                    'error': 'This freelancer has not passed competency verification for this project.'
-                }, status=status.HTTP_400_BAD_REQUEST)
             
             proposal.status = 'accepted'
             proposal.save()

@@ -336,19 +336,12 @@ class ProposalSerializer(serializers.ModelSerializer):
 
         if user and user.user_type == 'freelancer':
             evaluation = evaluate_freelancer_for_project(attrs['project'], user, attrs)
-            if evaluation['score'] < evaluation['minimum_score']:
-                raise serializers.ValidationError({
-                    'verification': (
-                        f"Your proposal needs a competency score of at least "
-                        f"{evaluation['minimum_score']}%. Current score: {evaluation['score']}%."
-                    ),
-                    'verification_breakdown': evaluation['breakdown'],
-                })
-
             attrs['verification_status'] = evaluation['status']
             attrs['verification_score'] = evaluation['score']
             attrs['verification_breakdown'] = {
                 **evaluation['breakdown'],
+                'minimum_score': evaluation['minimum_score'],
+                'advisory_only': True,
                 'freelancer_readiness': calculate_freelancer_readiness(user),
             }
 

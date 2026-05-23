@@ -163,9 +163,9 @@ const ProposalsList = ({ projectId }) => {
                                     console.log('Hire button clicked for proposal:', proposal.id);
                                     handleHire(proposal.id);
                                 }}
-                                disabled={statusMap[proposal.id] === 'hiring' || proposal.verification_status !== 'verified'}
+                                disabled={statusMap[proposal.id] === 'hiring'}
                                 type="button"
-                                title={proposal.verification_status !== 'verified' ? 'Only verified proposals can be hired' : 'Hire freelancer'}
+                                title={proposal.verification_status !== 'verified' ? 'Score is advisory. You can still hire at your discretion.' : 'Hire freelancer'}
                             >
                                 {statusMap[proposal.id] === 'hiring' ? <Loader2 className="animate-spin" size={16} /> : 'Hire'}
                             </button>

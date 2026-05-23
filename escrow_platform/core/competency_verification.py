@@ -86,12 +86,7 @@ def evaluate_freelancer_for_project(project, freelancer, proposal_data):
     proposal_score = round(min(15, (len(proposal_matches) / max(len(project_tokens), 1)) * 45))
 
     total = min(100, skill_score + profession_score + evidence_score + proposal_score)
-    if total >= MIN_VERIFICATION_SCORE:
-        status = 'verified'
-    elif total >= 35:
-        status = 'needs_review'
-    else:
-        status = 'rejected'
+    status = 'verified' if total >= MIN_VERIFICATION_SCORE else 'needs_review'
 
     return {
         'status': status,

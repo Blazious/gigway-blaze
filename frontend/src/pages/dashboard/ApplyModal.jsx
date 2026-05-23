@@ -66,7 +66,7 @@ const ApplyModal = ({ isOpen, onClose, project, onSuccess }) => {
                     color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.25rem'
                 }}>
                     <ShieldCheck size={20} style={{ color: '#10b981', flexShrink: 0, marginTop: '0.1rem' }} />
-                    <span>Competency verification</span>
+                    <span>GigWay will score your proposal fit for the client, but low scores will not block your application.</span>
                 </div>
                 {error && (
                     <div style={{
@@ -145,7 +145,7 @@ const ApplyModal = ({ isOpen, onClose, project, onSuccess }) => {
                         <button type="button" onClick={onClose} className="btn btn-outline">Cancel</button>
                         <button type="submit" className="btn btn-primary" disabled={isLoading}>
                             {isLoading ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
-                            Submit Application
+                            Submit Proposal
                         </button>
                     </div>
                 </form>
