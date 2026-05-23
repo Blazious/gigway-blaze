@@ -3,7 +3,7 @@ from decimal import Decimal
 from core.models import (
     CustomUser, Project, Contract, Escrow, 
     Deliverable, Dispute, Proposal, NotificationPreference, Notification, Milestone,
-    SkillAssessmentQuestion, SkillAssessmentAttempt, VerifiedSkill
+    SkillAssessmentQuestion, SkillAssessmentAttempt, VerifiedSkill, WorkHistory
 )
 from core.competency_verification import evaluate_freelancer_for_project
 from core.freelancer_readiness import calculate_freelancer_readiness
@@ -148,7 +148,9 @@ class ProjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
         fields = ['id', 'client', 'freelancer', 'title', 'description',
-                 'scope_of_work', 'timeline', 'budget', 'payment_mode', 'milestone_plan',
+                 'scope_of_work', 'timeline', 'budget', 'required_skills',
+                 'required_tools', 'experience_level', 'preferred_background',
+                 'payment_mode', 'milestone_plan',
                  'status', 'contract', 'escrow_status', 'created_at']
         read_only_fields = ['id', 'created_at', 'status']
 
@@ -160,7 +162,29 @@ class ProjectSerializer(serializers.ModelSerializer):
 class ProjectCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
-        fields = ['title', 'description', 'scope_of_work', 'timeline', 'budget', 'payment_mode', 'milestone_plan']
+        fields = [
+            'title', 'description', 'scope_of_work', 'timeline', 'budget',
+            'required_skills', 'required_tools', 'experience_level',
+            'preferred_background', 'payment_mode', 'milestone_plan'
+        ]
+
+    def _clean_string_list(self, value, label):
+        if value in (None, ''):
+            return []
+        if not isinstance(value, list):
+            raise serializers.ValidationError(f"{label} must be a list.")
+        cleaned = []
+        for item in value:
+            text = str(item or '').strip()
+            if text and text.lower() not in [existing.lower() for existing in cleaned]:
+                cleaned.append(text[:60])
+        return cleaned[:20]
+
+    def validate_required_skills(self, value):
+        return self._clean_string_list(value, "Required skills")
+
+    def validate_required_tools(self, value):
+        return self._clean_string_list(value, "Required tools")
     
     def validate_budget(self, value):
         if value < 100:
@@ -169,6 +193,10 @@ class ProjectCreateSerializer(serializers.ModelSerializer):
 
     def validate_payment_mode(self, value):
         return value or 'project_completion'
+
+    def validate_experience_level(self, value):
+        value = str(value or '').strip().lower()
+        return value if value in {'', 'junior', 'mid', 'senior', 'expert'} else ''
 
     def validate_milestone_plan(self, value):
         if value in (None, ''):
@@ -230,6 +258,40 @@ class ProjectCreateSerializer(serializers.ModelSerializer):
 
 class ContractSignSerializer(serializers.Serializer):
     signature = serializers.CharField(max_length=255, required=True)
+
+class WorkHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WorkHistory
+        fields = [
+            'id', 'job_title', 'company', 'start_date', 'end_date',
+            'description', 'skills_used', 'source', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'source', 'created_at', 'updated_at']
+
+    def validate_skills_used(self, value):
+        if value in (None, ''):
+            return []
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Skills used must be a list.")
+        cleaned = []
+        for skill in value:
+            text = str(skill or '').strip()
+            if text and text.lower() not in [existing.lower() for existing in cleaned]:
+                cleaned.append(text[:60])
+        return cleaned[:30]
+
+    def validate(self, attrs):
+        start_date = attrs.get('start_date') or getattr(self.instance, 'start_date', None)
+        end_date = attrs.get('end_date') or getattr(self.instance, 'end_date', None)
+        if start_date and end_date and end_date < start_date:
+            raise serializers.ValidationError({'end_date': 'End date cannot be before start date.'})
+        return attrs
+
+    def create(self, validated_data):
+        request = self.context.get('request')
+        validated_data['freelancer'] = request.user
+        validated_data['source'] = 'manual'
+        return super().create(validated_data)
 
 class EscrowDepositSerializer(serializers.Serializer):
     contract_id = serializers.UUIDField(required=True)
@@ -306,7 +368,8 @@ class ProposalSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'project', 'freelancer', 'freelancer_name', 'cover_letter',
             'bid_amount', 'relevant_experience', 'qualification_summary',
-            'portfolio_url', 'verification_status', 'verification_score',
+            'portfolio_url', 'ai_matched_skills', 'ai_most_relevant_role',
+            'verification_status', 'verification_score',
             'verification_breakdown', 'freelancer_readiness', 'status', 'created_at'
         ]
         read_only_fields = [
@@ -326,6 +389,13 @@ class ProposalSerializer(serializers.ModelSerializer):
             return validate_external_url(value, label="Portfolio URL")
         except Exception as exc:
             raise serializers.ValidationError(str(exc)) from exc
+
+    def validate_ai_matched_skills(self, value):
+        if value in (None, ''):
+            return []
+        if not isinstance(value, list):
+            return []
+        return [str(item).strip()[:60] for item in value if str(item).strip()][:20]
 
     def get_freelancer_readiness(self, obj):
         return calculate_freelancer_readiness(obj.freelancer)

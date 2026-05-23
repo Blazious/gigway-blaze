@@ -102,8 +102,33 @@ export const createProposal = async (proposalData) => {
     return response.data;
 };
 
+export const generateProposalPrefill = async (projectId) => {
+    const response = await api.post(`/projects/${projectId}/proposal-prefill/`);
+    return response.data;
+};
+
 export const getProposals = async (projectId) => {
     const response = await api.get(`/proposals/?project=${projectId}`);
+    return response.data;
+};
+
+export const getWorkHistory = async () => {
+    const response = await api.get('/work-history/');
+    return response.data;
+};
+
+export const createWorkHistory = async (entry) => {
+    const response = await api.post('/work-history/', entry);
+    return response.data;
+};
+
+export const updateWorkHistory = async (entryId, entry) => {
+    const response = await api.patch(`/work-history/${entryId}/`, entry);
+    return response.data;
+};
+
+export const deleteWorkHistory = async (entryId) => {
+    const response = await api.delete(`/work-history/${entryId}/`);
     return response.data;
 };
 

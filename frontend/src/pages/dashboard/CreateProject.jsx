@@ -13,9 +13,15 @@ const CreateProject = () => {
         budget: '',
         timeline: '',
         category: 'web_dev', // Default
+        required_skills: [],
+        required_tools: [],
+        experience_level: '',
+        preferred_background: '',
         payment_mode: 'project_completion',
         milestone_plan: []
     });
+    const [skillInput, setSkillInput] = useState('');
+    const [toolInput, setToolInput] = useState('');
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -53,6 +59,24 @@ const CreateProject = () => {
         setFormData((prev) => ({
             ...prev,
             milestone_plan: prev.milestone_plan.filter((_, itemIndex) => itemIndex !== index)
+        }));
+    };
+
+    const addListItem = (field, value, clearInput) => {
+        const text = value.trim();
+        if (!text) return;
+        setFormData((prev) => {
+            const current = prev[field] || [];
+            if (current.some(item => item.toLowerCase() === text.toLowerCase())) return prev;
+            return { ...prev, [field]: [...current, text] };
+        });
+        clearInput('');
+    };
+
+    const removeListItem = (field, value) => {
+        setFormData((prev) => ({
+            ...prev,
+            [field]: (prev[field] || []).filter(item => item !== value)
         }));
     };
 
@@ -133,6 +157,117 @@ const CreateProject = () => {
                         value={formData.scope_of_work}
                         onChange={handleChange}
                     ></textarea>
+                </div>
+
+                <div className="form-group">
+                    <label className="form-label">Hiring Criteria</label>
+                    <div style={{
+                        border: '1px solid var(--glass-border)',
+                        borderRadius: '0.75rem',
+                        padding: '1rem',
+                        background: 'rgba(255,255,255,0.03)',
+                        display: 'grid',
+                        gap: '1rem'
+                    }}>
+                        <div>
+                            <label className="form-label">Required skills</label>
+                            <div style={{ display: 'flex', gap: '0.75rem' }}>
+                                <input
+                                    type="text"
+                                    className="form-input"
+                                    placeholder="e.g. React, Django, UI design"
+                                    value={skillInput}
+                                    onChange={(e) => setSkillInput(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            addListItem('required_skills', skillInput, setSkillInput);
+                                        }
+                                    }}
+                                />
+                                <button type="button" className="btn btn-outline" onClick={() => addListItem('required_skills', skillInput, setSkillInput)}>
+                                    Add
+                                </button>
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.65rem' }}>
+                                {formData.required_skills.map(skill => (
+                                    <button
+                                        type="button"
+                                        key={skill}
+                                        onClick={() => removeListItem('required_skills', skill)}
+                                        style={{ border: '1px solid var(--glass-border)', background: 'var(--glass-bg)', color: 'var(--text-primary)', borderRadius: '999px', padding: '0.25rem 0.65rem', cursor: 'pointer' }}
+                                        title="Remove skill"
+                                    >
+                                        {skill}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="form-label">Tools or platforms</label>
+                            <div style={{ display: 'flex', gap: '0.75rem' }}>
+                                <input
+                                    type="text"
+                                    className="form-input"
+                                    placeholder="e.g. Figma, GitHub, PostgreSQL"
+                                    value={toolInput}
+                                    onChange={(e) => setToolInput(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            addListItem('required_tools', toolInput, setToolInput);
+                                        }
+                                    }}
+                                />
+                                <button type="button" className="btn btn-outline" onClick={() => addListItem('required_tools', toolInput, setToolInput)}>
+                                    Add
+                                </button>
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.65rem' }}>
+                                {formData.required_tools.map(tool => (
+                                    <button
+                                        type="button"
+                                        key={tool}
+                                        onClick={() => removeListItem('required_tools', tool)}
+                                        style={{ border: '1px solid var(--glass-border)', background: 'var(--glass-bg)', color: 'var(--text-primary)', borderRadius: '999px', padding: '0.25rem 0.65rem', cursor: 'pointer' }}
+                                        title="Remove tool"
+                                    >
+                                        {tool}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                            <div>
+                                <label className="form-label">Experience level</label>
+                                <select
+                                    name="experience_level"
+                                    className="form-input"
+                                    value={formData.experience_level}
+                                    onChange={handleChange}
+                                >
+                                    <option value="">Open to any level</option>
+                                    <option value="junior">Junior</option>
+                                    <option value="mid">Mid-level</option>
+                                    <option value="senior">Senior</option>
+                                    <option value="expert">Expert</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="form-label">Preferred background</label>
+                                <input
+                                    type="text"
+                                    name="preferred_background"
+                                    className="form-input"
+                                    placeholder="e.g. fintech, ecommerce, SaaS"
+                                    value={formData.preferred_background}
+                                    onChange={handleChange}
+                                />
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>

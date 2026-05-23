@@ -130,6 +130,31 @@ const ProposalsList = ({ projectId }) => {
                                 <strong style={{ color: 'var(--text-primary)' }}>Competencies:</strong> {proposal.qualification_summary}
                             </p>
                         )}
+                        {(proposal.ai_most_relevant_role || proposal.ai_matched_skills?.length > 0) && (
+                            <div style={{ marginTop: '0.6rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                                {proposal.ai_most_relevant_role && (
+                                    <div><strong style={{ color: 'var(--text-primary)' }}>Relevant role:</strong> {proposal.ai_most_relevant_role}</div>
+                                )}
+                                {proposal.ai_matched_skills?.length > 0 && (
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginTop: '0.35rem' }}>
+                                        {proposal.ai_matched_skills.map(skill => (
+                                            <span
+                                                key={`${proposal.id}-${skill}`}
+                                                style={{
+                                                    border: '1px solid rgba(16,185,129,0.35)',
+                                                    background: 'rgba(16,185,129,0.1)',
+                                                    color: '#10b981',
+                                                    borderRadius: '999px',
+                                                    padding: '0.2rem 0.5rem'
+                                                }}
+                                            >
+                                                {skill}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                         {proposal.portfolio_url && (
                             <a
                                 href={proposal.portfolio_url}

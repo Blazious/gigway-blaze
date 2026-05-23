@@ -12,7 +12,8 @@ from core.views import (
     LexaChatView, ProposalViewSet, AcceptProposalView,
     NotificationPreferenceView, NotificationListView, MarkNotificationReadView,
     DeliverableView,  # Keeping usage for listing if needed, or replace
-    SkillAssessmentOptionsView, SkillAssessmentStartView, SkillAssessmentAnswerView
+    SkillAssessmentOptionsView, SkillAssessmentStartView, SkillAssessmentAnswerView,
+    WorkHistoryView, ProposalPrefillView
 )
 
 # Import NEW workflow views
@@ -51,6 +52,9 @@ urlpatterns = [
     # Proposals
     path('api/proposals/', ProposalViewSet.as_view(), name='proposal-list'),
     path('api/proposals/<uuid:proposal_id>/accept/', AcceptProposalView.as_view(), name='proposal-accept'),
+    path('api/projects/<uuid:project_id>/proposal-prefill/', ProposalPrefillView.as_view(), name='proposal-prefill'),
+    path('api/work-history/', WorkHistoryView.as_view(), name='work-history-list'),
+    path('api/work-history/<uuid:entry_id>/', WorkHistoryView.as_view(), name='work-history-detail'),
 
     # Contracts (View/Sign)
     path('api/projects/<uuid:project_id>/contract/', ContractView.as_view(), name='project-contract'), # Get Contract

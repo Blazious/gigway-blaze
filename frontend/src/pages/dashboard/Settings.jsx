@@ -2,9 +2,12 @@ import React, { useState, useEffect } from 'react';
 import {
     User, Lock, Bell, CreditCard, Shield, Trash2,
     Smartphone, Globe, Eye, EyeOff, Save, AlertCircle,
-    CheckCircle2, X, ExternalLink
+    CheckCircle2, X, Briefcase, PlusCircle
 } from 'lucide-react';
-import { updateProfile, changePassword, getNotificationPreferences, updateNotificationPreferences } from '../../api';
+import {
+    updateProfile, changePassword, getNotificationPreferences, updateNotificationPreferences,
+    getWorkHistory, createWorkHistory, deleteWorkHistory
+} from '../../api';
 import '../../styles/Settings.css';
 
 const Settings = () => {
@@ -12,6 +15,16 @@ const Settings = () => {
     const [activeTab, setActiveTab] = useState('account');
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
+    const [workHistory, setWorkHistory] = useState([]);
+    const [workHistoryLoading, setWorkHistoryLoading] = useState(false);
+    const [workHistoryForm, setWorkHistoryForm] = useState({
+        job_title: '',
+        company: '',
+        start_date: '',
+        end_date: '',
+        description: '',
+        skills_text: ''
+    });
 
     // Account Settings
     const [accountData, setAccountData] = useState({
@@ -71,6 +84,21 @@ const Settings = () => {
 
         fetchPreferences();
     }, []);
+
+    useEffect(() => {
+        const fetchWorkHistory = async () => {
+            if (user.user_type !== 'freelancer') return;
+            setWorkHistoryLoading(true);
+            try {
+                setWorkHistory(await getWorkHistory());
+            } catch (err) {
+                console.error('Failed to fetch work history:', err);
+            } finally {
+                setWorkHistoryLoading(false);
+            }
+        };
+        fetchWorkHistory();
+    }, [user.user_type]);
 
     const showMessage = (type, text) => {
         setMessage({ type, text });
@@ -168,8 +196,53 @@ const Settings = () => {
         }
     };
 
+    const handleWorkHistorySubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        try {
+            const payload = {
+                job_title: workHistoryForm.job_title,
+                company: workHistoryForm.company,
+                start_date: workHistoryForm.start_date,
+                end_date: workHistoryForm.end_date || null,
+                description: workHistoryForm.description,
+                skills_used: workHistoryForm.skills_text
+                    .split(',')
+                    .map(item => item.trim())
+                    .filter(Boolean)
+            };
+            const saved = await createWorkHistory(payload);
+            setWorkHistory([saved, ...workHistory]);
+            setWorkHistoryForm({
+                job_title: '',
+                company: '',
+                start_date: '',
+                end_date: '',
+                description: '',
+                skills_text: ''
+            });
+            showMessage('success', 'Work history saved. Gemini can now use it when drafting proposals.');
+        } catch (err) {
+            showMessage('error', err.response?.data?.error || 'Failed to save work history');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDeleteWorkHistory = async (entryId) => {
+        if (!window.confirm('Remove this work history entry?')) return;
+        try {
+            await deleteWorkHistory(entryId);
+            setWorkHistory(workHistory.filter(entry => entry.id !== entryId));
+            showMessage('success', 'Work history entry removed');
+        } catch (err) {
+            showMessage('error', 'Failed to remove work history entry');
+        }
+    };
+
     const tabs = [
         { id: 'account', label: 'Account', icon: User },
+        ...(user.user_type === 'freelancer' ? [{ id: 'work_history', label: 'Work History', icon: Briefcase }] : []),
         { id: 'security', label: 'Security', icon: Lock },
         { id: 'notifications', label: 'Notifications', icon: Bell },
         { id: 'privacy', label: 'Privacy', icon: Eye },
@@ -345,6 +418,123 @@ const Settings = () => {
                         <Trash2 size={18} style={{ marginRight: '8px' }} /> Delete Account
                     </button>
                 </div>
+            </div>
+        </div>
+    );
+
+    const renderWorkHistoryTab = () => (
+        <div className="settings-section">
+            <h3>Work History</h3>
+            <p className="section-description">
+                Add real past work once. GigWay uses this to draft stronger proposals without inventing experience.
+            </p>
+
+            <form onSubmit={handleWorkHistorySubmit}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div className="form-group">
+                        <label className="form-label">Role / Job Title</label>
+                        <input
+                            className="form-input"
+                            value={workHistoryForm.job_title}
+                            onChange={(e) => setWorkHistoryForm({ ...workHistoryForm, job_title: e.target.value })}
+                            placeholder="Frontend Developer"
+                            required
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label">Company / Client</label>
+                        <input
+                            className="form-input"
+                            value={workHistoryForm.company}
+                            onChange={(e) => setWorkHistoryForm({ ...workHistoryForm, company: e.target.value })}
+                            placeholder="Acme Studio"
+                        />
+                    </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div className="form-group">
+                        <label className="form-label">Start Date</label>
+                        <input
+                            type="date"
+                            className="form-input"
+                            value={workHistoryForm.start_date}
+                            onChange={(e) => setWorkHistoryForm({ ...workHistoryForm, start_date: e.target.value })}
+                            required
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label">End Date</label>
+                        <input
+                            type="date"
+                            className="form-input"
+                            value={workHistoryForm.end_date}
+                            onChange={(e) => setWorkHistoryForm({ ...workHistoryForm, end_date: e.target.value })}
+                        />
+                        <span className="helper-text">Leave empty if current</span>
+                    </div>
+                </div>
+
+                <div className="form-group">
+                    <label className="form-label">Skills Used</label>
+                    <input
+                        className="form-input"
+                        value={workHistoryForm.skills_text}
+                        onChange={(e) => setWorkHistoryForm({ ...workHistoryForm, skills_text: e.target.value })}
+                        placeholder="React, Django, PostgreSQL"
+                    />
+                    <span className="helper-text">Separate skills with commas</span>
+                </div>
+
+                <div className="form-group">
+                    <label className="form-label">What did you do?</label>
+                    <textarea
+                        className="form-input"
+                        rows="4"
+                        value={workHistoryForm.description}
+                        onChange={(e) => setWorkHistoryForm({ ...workHistoryForm, description: e.target.value })}
+                        placeholder="Describe the work, responsibilities, tools, and outcomes."
+                        required
+                    />
+                </div>
+
+                <button type="submit" className="btn btn-primary" disabled={loading}>
+                    <PlusCircle size={18} style={{ marginRight: '8px' }} /> {loading ? 'Saving...' : 'Add Work History'}
+                </button>
+            </form>
+
+            <div className="settings-divider"></div>
+
+            <div className="settings-list">
+                {workHistoryLoading ? (
+                    <p className="section-description">Loading work history...</p>
+                ) : workHistory.length === 0 ? (
+                    <div className="info-box">
+                        <Briefcase size={20} />
+                        <p>No work history yet. Add one entry so proposal drafting can use your real experience.</p>
+                    </div>
+                ) : (
+                    workHistory.map(entry => (
+                        <div className="setting-item" key={entry.id}>
+                            <div>
+                                <h4>{entry.job_title}{entry.company ? ` at ${entry.company}` : ''}</h4>
+                                <p>{entry.start_date} - {entry.end_date || 'Present'}</p>
+                                <p>{entry.description}</p>
+                                {entry.skills_used?.length > 0 && (
+                                    <p className="helper-text">{entry.skills_used.join(', ')}</p>
+                                )}
+                            </div>
+                            <button
+                                type="button"
+                                className="btn btn-danger"
+                                onClick={() => handleDeleteWorkHistory(entry.id)}
+                                title="Delete work history"
+                            >
+                                <Trash2 size={16} />
+                            </button>
+                        </div>
+                    ))
+                )}
             </div>
         </div>
     );
@@ -540,6 +730,7 @@ const Settings = () => {
 
                 <div className="settings-content">
                     {activeTab === 'account' && renderAccountTab()}
+                    {activeTab === 'work_history' && renderWorkHistoryTab()}
                     {activeTab === 'security' && renderSecurityTab()}
                     {activeTab === 'notifications' && renderNotificationsTab()}
                     {activeTab === 'privacy' && renderPrivacyTab()}

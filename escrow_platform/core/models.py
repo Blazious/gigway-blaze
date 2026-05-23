@@ -105,6 +105,10 @@ class Project(models.Model):
     scope_of_work = models.TextField()
     timeline = models.DateField()
     budget = models.DecimalField(max_digits=10, decimal_places=2)
+    required_skills = models.JSONField(default=list, blank=True)
+    required_tools = models.JSONField(default=list, blank=True)
+    experience_level = models.CharField(max_length=30, blank=True)
+    preferred_background = models.TextField(blank=True)
     payment_mode = models.CharField(
         max_length=24,
         choices=PAYMENT_MODE_CHOICES,
@@ -123,6 +127,35 @@ class Project(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+
+class WorkHistory(models.Model):
+    SOURCE_CHOICES = [
+        ('manual', 'Manual'),
+        ('profile', 'Profile'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    freelancer = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name='work_history'
+    )
+    job_title = models.CharField(max_length=200)
+    company = models.CharField(max_length=200, blank=True)
+    start_date = models.DateField()
+    end_date = models.DateField(null=True, blank=True)
+    description = models.TextField()
+    skills_used = models.JSONField(default=list, blank=True)
+    source = models.CharField(max_length=30, choices=SOURCE_CHOICES, default='manual')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        company = f" at {self.company}" if self.company else ""
+        return f"{self.job_title}{company}"
+
+    class Meta:
+        ordering = ['-start_date', '-created_at']
 
 class Proposal(models.Model):
     STATUS_CHOICES = [
@@ -152,6 +185,8 @@ class Proposal(models.Model):
     relevant_experience = models.TextField(blank=True)
     qualification_summary = models.TextField(blank=True)
     portfolio_url = models.URLField(max_length=500, blank=True)
+    ai_matched_skills = models.JSONField(default=list, blank=True)
+    ai_most_relevant_role = models.CharField(max_length=260, blank=True)
     verification_status = models.CharField(
         max_length=20,
         choices=VERIFICATION_STATUS_CHOICES,

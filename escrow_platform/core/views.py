@@ -18,7 +18,8 @@ from core.serializers import (
     ProjectCreateSerializer, ProjectSerializer, DeliverableSerializer,
     DeliverableCreateSerializer, DisputeSerializer, DisputeCreateSerializer,
     ProposalSerializer, NotificationPreferenceSerializer, NotificationSerializer,
-    SkillAssessmentQuestionSerializer, SkillAssessmentAttemptSerializer, VerifiedSkillSerializer
+    SkillAssessmentQuestionSerializer, SkillAssessmentAttemptSerializer, VerifiedSkillSerializer,
+    WorkHistorySerializer
 )
 # from core.mpesa_callbacks import process_deposit_callback, process_b2c_callback # Now in workflow_views
 from django.http import HttpResponse, JsonResponse
@@ -29,7 +30,7 @@ from core.authentication import JWTAuthentication
 from core.models import (
     CustomUser, Project, Contract, Escrow, Dispute, Deliverable, Proposal,
     NotificationPreference, Notification, Milestone, SkillAssessmentQuestion,
-    SkillAssessmentAttempt, SkillAssessmentAnswer, VerifiedSkill
+    SkillAssessmentAttempt, SkillAssessmentAnswer, VerifiedSkill, WorkHistory
 )
 from core.contract_generator import generate_contract_text
 from core.escrow_sync import sync_escrow_from_provider
@@ -47,6 +48,7 @@ from core.notification_service import (
     send_deliverable_notification, send_dispute_notification,
     send_contract_notification, send_proposal_notification
 )
+from core.proposal_ai import generate_proposal_prefill
 
 logger = logging.getLogger(__name__)
 
@@ -538,6 +540,67 @@ class ProposalViewSet(APIView):
             except Exception as e:
                 return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class WorkHistoryView(APIView):
+    authentication_classes = [JWTAuthentication]
+
+    def get(self, request, entry_id=None):
+        if request.user.user_type != 'freelancer':
+            return Response({'error': 'Only freelancers have work history.'}, status=status.HTTP_403_FORBIDDEN)
+        queryset = WorkHistory.objects.filter(freelancer=request.user)
+        serializer = WorkHistorySerializer(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        if request.user.user_type != 'freelancer':
+            return Response({'error': 'Only freelancers can add work history.'}, status=status.HTTP_403_FORBIDDEN)
+        serializer = WorkHistorySerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        entry = serializer.save()
+        return Response(WorkHistorySerializer(entry).data, status=status.HTTP_201_CREATED)
+
+    def patch(self, request, entry_id):
+        if request.user.user_type != 'freelancer':
+            return Response({'error': 'Only freelancers can update work history.'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            entry = WorkHistory.objects.get(id=entry_id, freelancer=request.user)
+        except WorkHistory.DoesNotExist:
+            return Response({'error': 'Work history entry not found.'}, status=status.HTTP_404_NOT_FOUND)
+        serializer = WorkHistorySerializer(entry, data=request.data, partial=True, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def delete(self, request, entry_id):
+        if request.user.user_type != 'freelancer':
+            return Response({'error': 'Only freelancers can delete work history.'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            entry = WorkHistory.objects.get(id=entry_id, freelancer=request.user)
+        except WorkHistory.DoesNotExist:
+            return Response({'error': 'Work history entry not found.'}, status=status.HTTP_404_NOT_FOUND)
+        entry.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+class ProposalPrefillView(APIView):
+    authentication_classes = [JWTAuthentication]
+
+    def post(self, request, project_id):
+        if request.user.user_type != 'freelancer':
+            return Response({'error': 'Only freelancers can generate proposal drafts.'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            project = Project.objects.get(id=project_id, status='open')
+        except Project.DoesNotExist:
+            return Response({'error': 'Open project not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        work_history = WorkHistory.objects.filter(freelancer=request.user)
+        try:
+            result = generate_proposal_prefill(project, request.user, work_history)
+        except ValueError as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as exc:
+            logger.exception("Proposal prefill failed")
+            return Response({'error': f'Gemini proposal draft failed: {str(exc)}'}, status=status.HTTP_502_BAD_GATEWAY)
+        return Response(result, status=status.HTTP_200_OK)
 
 class AcceptProposalView(APIView):
     authentication_classes = [JWTAuthentication]

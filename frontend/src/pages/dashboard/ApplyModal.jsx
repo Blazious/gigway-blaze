@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Loader2, DollarSign, Send, ShieldCheck } from 'lucide-react';
-import { createProposal } from '../../api';
+import { Loader2, DollarSign, Send, ShieldCheck, Wand2 } from 'lucide-react';
+import { createProposal, generateProposalPrefill } from '../../api';
 
 const getErrorMessage = (data) => {
     if (!data) return null;
@@ -20,9 +20,12 @@ const ApplyModal = ({ isOpen, onClose, project, onSuccess }) => {
         bid_amount: project?.budget || '',
         relevant_experience: '',
         qualification_summary: '',
-        portfolio_url: ''
+        portfolio_url: '',
+        ai_matched_skills: [],
+        ai_most_relevant_role: ''
     });
     const [isLoading, setIsLoading] = useState(false);
+    const [isPrefilling, setIsPrefilling] = useState(false);
     const [error, setError] = useState('');
 
     if (!isOpen || !project) return null;
@@ -49,6 +52,27 @@ const ApplyModal = ({ isOpen, onClose, project, onSuccess }) => {
         }
     };
 
+    const handleGenerateDraft = async () => {
+        setIsPrefilling(true);
+        setError('');
+        try {
+            const draft = await generateProposalPrefill(project.id);
+            setFormData((prev) => ({
+                ...prev,
+                cover_letter: draft.cover_letter || prev.cover_letter,
+                relevant_experience: draft.relevant_experience || prev.relevant_experience,
+                qualification_summary: draft.qualification_summary || prev.qualification_summary,
+                ai_matched_skills: draft.matched_skills || [],
+                ai_most_relevant_role: draft.most_relevant_role || ''
+            }));
+        } catch (error) {
+            const responseError = getErrorMessage(error.response?.data);
+            setError(responseError || 'Could not generate a Gemini draft. Add work history in Settings, then try again.');
+        } finally {
+            setIsPrefilling(false);
+        }
+    };
+
     return (
         <div style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -68,6 +92,36 @@ const ApplyModal = ({ isOpen, onClose, project, onSuccess }) => {
                     <ShieldCheck size={20} style={{ color: '#10b981', flexShrink: 0, marginTop: '0.1rem' }} />
                     <span>GigWay will score your proposal fit for the client, but low scores will not block your application.</span>
                 </div>
+                <button
+                    type="button"
+                    className="btn btn-outline"
+                    onClick={handleGenerateDraft}
+                    disabled={isPrefilling}
+                    style={{ width: '100%', marginBottom: '1rem', justifyContent: 'center' }}
+                >
+                    {isPrefilling ? <Loader2 className="animate-spin" size={18} /> : <Wand2 size={18} />}
+                    {isPrefilling ? 'Asking Gemini...' : 'Draft from My Work History'}
+                </button>
+                {(formData.ai_most_relevant_role || formData.ai_matched_skills.length > 0) && (
+                    <div style={{
+                        border: '1px solid rgba(16,185,129,0.3)',
+                        background: 'rgba(16,185,129,0.08)',
+                        color: 'var(--text-secondary)',
+                        borderRadius: '0.5rem',
+                        padding: '0.75rem',
+                        marginBottom: '1rem',
+                        fontSize: '0.85rem'
+                    }}>
+                        {formData.ai_most_relevant_role && (
+                            <div><strong style={{ color: 'var(--text-primary)' }}>Most relevant role:</strong> {formData.ai_most_relevant_role}</div>
+                        )}
+                        {formData.ai_matched_skills.length > 0 && (
+                            <div style={{ marginTop: '0.35rem' }}>
+                                <strong style={{ color: 'var(--text-primary)' }}>Matched skills:</strong> {formData.ai_matched_skills.join(', ')}
+                            </div>
+                        )}
+                    </div>
+                )}
                 {error && (
                     <div style={{
                         background: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.35)',

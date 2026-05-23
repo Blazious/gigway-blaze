@@ -148,6 +148,37 @@ const FindWork = () => {
                                 {project.description}
                             </p>
 
+                            {(project.required_skills?.length > 0 || project.experience_level) && (
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginBottom: '0.9rem' }}>
+                                    {project.experience_level && (
+                                        <span style={{
+                                            fontSize: '0.75rem',
+                                            padding: '0.2rem 0.5rem',
+                                            borderRadius: '999px',
+                                            background: 'rgba(59,130,246,0.12)',
+                                            color: '#3b82f6',
+                                            textTransform: 'capitalize'
+                                        }}>
+                                            {project.experience_level}
+                                        </span>
+                                    )}
+                                    {(project.required_skills || []).slice(0, 5).map(skill => (
+                                        <span
+                                            key={`${project.id}-${skill}`}
+                                            style={{
+                                                fontSize: '0.75rem',
+                                                padding: '0.2rem 0.5rem',
+                                                borderRadius: '999px',
+                                                background: 'rgba(16,185,129,0.1)',
+                                                color: '#10b981'
+                                            }}
+                                        >
+                                            {skill}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+
                             <div className="project-card-actions">
                                 <button
                                     className="btn btn-primary"

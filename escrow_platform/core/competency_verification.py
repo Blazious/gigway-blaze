@@ -39,7 +39,15 @@ def _normalise_skills(skills):
 
 
 def evaluate_freelancer_for_project(project, freelancer, proposal_data):
-    project_text = _as_text(project.title, project.description, project.scope_of_work)
+    project_text = _as_text(
+        project.title,
+        project.description,
+        project.scope_of_work,
+        ' '.join(project.required_skills or []),
+        ' '.join(project.required_tools or []),
+        project.experience_level,
+        project.preferred_background,
+    )
     project_tokens = _tokens(project_text)
     profile_text = _as_text(freelancer.profession, freelancer.bio)
     profile_tokens = _tokens(profile_text)
