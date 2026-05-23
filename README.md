@@ -50,10 +50,16 @@ VITE_GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
 
 `VITE_API_BASE_URL` must point to the deployed Django backend, not `127.0.0.1`. Keep the `/api` suffix.
 
-After Vercel gives you a frontend URL, add it to the Django backend CORS/CSRF allowed origins and to any OAuth redirect settings. The Google redirect URI should be:
+Production frontend:
 
 ```text
-https://your-vercel-app.vercel.app/auth/google/callback
+https://gigway-two.vercel.app/
+```
+
+Add the frontend URL to the Django backend CORS/CSRF allowed origins and to any OAuth redirect settings. The Google redirect URI should be:
+
+```text
+https://gigway-two.vercel.app/auth/google/callback
 ```
 
 ## Manual Setup

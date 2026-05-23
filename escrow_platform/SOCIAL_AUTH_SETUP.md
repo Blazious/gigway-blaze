@@ -17,6 +17,7 @@ The backend is already configured to handle social authentication. You just need
 5. Configure OAuth consent screen if prompted
 6. Add authorized redirect URIs:
    - `http://localhost:5173/auth/google/callback` (development)
+   - `https://gigway-two.vercel.app/auth/google/callback` (production)
    - `https://yourdomain.com/auth/google/callback` (production)
 7. Copy the **Client ID**
 
@@ -28,6 +29,7 @@ The backend is already configured to handle social authentication. You just need
 4. Go to Settings → Basic
 5. Add authorized redirect URIs:
    - `http://localhost:5173` (development)
+   - `https://gigway-two.vercel.app` (production)
    - `https://yourdomain.com` (production)
 6. Copy the **App ID**
 
