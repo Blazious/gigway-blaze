@@ -29,6 +29,8 @@ def health_check(request):
 
 urlpatterns = [
     # System
+    path('', health_check, name='root-health-check'),
+    path('api/', health_check, name='api-root-health-check'),
     path('api/health/', health_check, name='health-check'),
 
     # Auth
