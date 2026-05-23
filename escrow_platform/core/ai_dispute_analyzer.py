@@ -1,24 +1,22 @@
 import json
 import logging
 import os
-import google.generativeai as genai
 from dotenv import load_dotenv
+from google import genai
 from pathlib import Path
 from .models import Project, Contract, Deliverable
-from typing import Optional, Dict, List
+from typing import Optional, Dict
 
 logger = logging.getLogger(__name__)
+GEMINI_TIMEOUT_SECONDS = int(os.getenv('GEMINI_TIMEOUT_SECONDS', '12'))
 
 # Initialize Gemini
 load_dotenv(override=True)
-genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
-
-_model = None
 
 DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash'
 FALLBACK_GEMINI_MODELS = [
     DEFAULT_GEMINI_MODEL,
-    'gemini-flash-latest',
+    'gemini-2.5-flash-lite',
     'gemini-2.0-flash',
 ]
 
@@ -27,39 +25,37 @@ def _normalize_model_name(model_name):
     return (model_name or DEFAULT_GEMINI_MODEL).replace('models/', '', 1)
 
 
-def get_best_model():
-    """Return configured Gemini model without doing slow network discovery at startup/request time."""
-    model_name = _normalize_model_name(os.getenv('GEMINI_MODEL', DEFAULT_GEMINI_MODEL))
-    return genai.GenerativeModel(model_name)
-
-def get_model():
-    global _model
-    if _model is None:
-        _model = get_best_model()
-    return _model
+def _get_gemini_client():
+    api_key = os.getenv('GEMINI_API_KEY', '').strip()
+    if not api_key:
+        raise RuntimeError('GEMINI_API_KEY is not configured')
+    return genai.Client(api_key=api_key)
 
 
 def generate_content_with_fallback(prompt):
     """Generate content, retrying known-supported Gemini model names if the configured one is unavailable."""
-    global _model
-
     configured_name = _normalize_model_name(os.getenv('GEMINI_MODEL', DEFAULT_GEMINI_MODEL))
     model_names = [configured_name] + [
         name for name in FALLBACK_GEMINI_MODELS
         if name != configured_name
     ]
     last_error = None
+    client = _get_gemini_client()
 
     for model_name in model_names:
         try:
-            model = genai.GenerativeModel(model_name)
             logger.info("Lexa using Gemini model: %s", model_name)
-            response = model.generate_content(prompt)
-            _model = model
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+            )
             return response
         except Exception as exc:
             last_error = exc
             logger.warning("Gemini model %s failed: %s", model_name, exc)
+            error_text = str(exc).lower()
+            if 'permission_denied' in error_text or 'api key' in error_text or 'reported as leaked' in error_text:
+                raise
 
     raise last_error
 
@@ -155,56 +151,6 @@ def build_project_dispute_context(project, dispute=None):
     return context
 
 
-def get_local_dispute_guidance(project_context, user_message=''):
-    project = project_context.get('project', {})
-    contract = project_context.get('contract', {})
-    deliverables = project_context.get('deliverables', [])
-    submitted = [item for item in deliverables if item.get('status') == 'submitted']
-    rejected = [item for item in deliverables if item.get('status') == 'rejected']
-    approved = [item for item in deliverables if item.get('status') == 'approved']
-
-    checks = [
-        f"Project: {project.get('title', 'selected project')}",
-        f"Project status: {project.get('status', 'unknown')}",
-        f"Payment status: {contract.get('payment_status', 'unknown')}",
-        f"Deliverables found: {len(deliverables)}",
-    ]
-
-    if not deliverables:
-        recommendation = (
-            "I do not see any submitted deliverables yet. If the client is disputing non-delivery, "
-            "ask the freelancer to submit the work or proof of work first. If the freelancer says work was done, "
-            "they should attach a file, link, or clear text submission before funds are released."
-        )
-    elif approved:
-        recommendation = (
-            "At least one deliverable is already approved. If funds have not moved, check the escrow release status "
-            "and confirmation code before opening a quality dispute."
-        )
-    elif rejected:
-        recommendation = (
-            "There is a rejected deliverable. Compare the rejection reason against the project scope and ask for a "
-            "specific revision list. If the submitted work partially satisfies the scope, a partial release may be fair."
-        )
-    elif submitted:
-        recommendation = (
-            "There is a submitted deliverable awaiting review. The client should review it against the project scope, "
-            "then either approve release or reject with a specific reason and evidence."
-        )
-    else:
-        recommendation = (
-            "The project has deliverable records, but none are in a clear submitted/approved/rejected state. "
-            "Check the latest deliverable status and request supporting evidence from both sides."
-        )
-
-    return (
-        "Here is my dispute-readiness analysis from the project record:\n\n"
-        + "\n".join(f"- {item}" for item in checks)
-        + "\n\nRecommended next step:\n"
-        + recommendation
-        + "\n\nFor a fair decision, keep the evidence tied to the contract scope, submitted deliverables, timestamps, and escrow status."
-    )
-
 def analyze_dispute_with_ai(dispute_id: str) -> Optional[Dict]:
     """
     Analyze dispute using AI with structured knowledge
@@ -256,12 +202,11 @@ def analyze_dispute_with_ai(dispute_id: str) -> Optional[Dict]:
             analysis = json.loads(response_text)
             return analysis
         except Exception as e:
-            print(f"Failed to parse AI response: {e}")
-            return None
+            raise RuntimeError(f"Failed to parse Gemini dispute response: {e}") from e
             
     except Exception as e:
-        print(f"Error during AI analysis: {e}")
-        return None
+        logger.exception("Gemini dispute analysis failed")
+        raise
 
 def get_lexa_response(user_message: str, project_context: Optional[Dict] = None) -> str:
     """
@@ -287,15 +232,5 @@ def get_lexa_response(user_message: str, project_context: Optional[Dict] = None)
     Always maintain the persona of Lexa. Keep responses concise but helpful.
     """
     
-    try:
-        response = generate_content_with_fallback(prompt)
-        return response.text.strip()
-    except Exception as e:
-        logger.exception("Lexa Gemini request failed")
-        if project_context:
-            return get_local_dispute_guidance(project_context, user_message)
-        return (
-            "I'm having trouble reaching the AI service right now, but I can still help with the basics: "
-            "confirm the contract scope, check whether deliverables were submitted, compare any rejection notes "
-            "against the agreed work, and keep escrow funds held until both sides provide evidence."
-        )
+    response = generate_content_with_fallback(prompt)
+    return (response.text or '').strip()

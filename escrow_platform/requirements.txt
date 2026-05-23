@@ -9,7 +9,7 @@ requests
 pyngrok
 python-dotenv
 Pillow
-google-generativeai
+google-genai==1.52.0
 requests-oauthlib
 cryptography
 paddlepaddle

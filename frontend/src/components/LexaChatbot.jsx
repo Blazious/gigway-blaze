@@ -221,7 +221,16 @@ const LexaChatbot = () => {
             setMessages(prev => [...prev, botMsg]);
         } catch (error) {
             console.error("Lexa Error:", error);
-            setMessages(prev => [...prev, { id: Date.now() + 1, text: "I'm having a bit of trouble thinking right now. Please try again soon!", sender: 'bot' }]);
+            const apiError = error.response?.data?.error;
+            if (error.response?.status === 401) {
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+            }
+            setMessages(prev => [...prev, {
+                id: Date.now() + 1,
+                text: apiError || "I'm having trouble reaching the server right now. Please refresh and try again.",
+                sender: 'bot'
+            }]);
         } finally {
             setIsThinking(false);
         }

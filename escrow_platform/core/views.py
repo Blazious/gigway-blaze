@@ -24,7 +24,7 @@ from core.serializers import (
 from django.http import HttpResponse, JsonResponse
 import json
 import logging
-from core.utils import generate_jwt_token
+from core.utils import generate_jwt_token, decode_jwt_token
 from core.authentication import JWTAuthentication
 from core.models import (
     CustomUser, Project, Contract, Escrow, Dispute, Deliverable, Proposal,
@@ -40,7 +40,6 @@ from core.ai_dispute_analyzer import (
     analyze_dispute_with_ai,
     build_project_dispute_context,
     get_lexa_response,
-    get_local_dispute_guidance,
 )
 from core.social_auth import authenticate_social_user
 from core.notification_service import (
@@ -430,7 +429,7 @@ class DisputeAnalyzeView(APIView):
             if request.user not in [dispute.project.client, dispute.project.freelancer]:
                 return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
 
-            analysis = analyze_dispute_with_ai(str(dispute_id)) or analyze_dispute_simple(dispute)
+            analysis = analyze_dispute_with_ai(str(dispute_id))
             dispute.ai_recommendation = analysis
             dispute.status = 'under_review'
             dispute.save(update_fields=['ai_recommendation', 'status'])
@@ -447,17 +446,36 @@ class DisputeResolveView(APIView):
          return Response({'status': 'resolved'})
 
 class LexaChatView(APIView):
-    authentication_classes = [JWTAuthentication]
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def _get_optional_user(self, request):
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
+            return None
+
+        payload = decode_jwt_token(auth_header.split(' ')[1])
+        if 'error' in payload:
+            logger.warning("Ignoring invalid Lexa auth token: %s", payload['error'])
+            return None
+
+        try:
+            return CustomUser.objects.get(id=payload['user_id'], is_active=True)
+        except CustomUser.DoesNotExist:
+            logger.warning("Ignoring Lexa auth token for missing/inactive user: %s", payload.get('user_id'))
+            return None
+
     def post(self, request):
+        user = self._get_optional_user(request)
         message = request.data.get('message', '')
         project_id = request.data.get('project_id')
         message_lower = str(message).lower()
 
-        if request.user.user_type == 'freelancer' and any(
+        if user and user.user_type == 'freelancer' and any(
             keyword in message_lower
             for keyword in ['competency', 'readiness', 'trust score', 'verified', 'verification', 'pass proposal', 'pass score']
         ):
-            readiness = calculate_freelancer_readiness(request.user)
+            readiness = calculate_freelancer_readiness(user)
             next_actions = readiness.get('next_actions') or ['Apply only to jobs that match your skills and write a specific proposal.']
             response_text = (
                 f"Your freelancer readiness score is {readiness['score']}% ({readiness['level'].replace('_', ' ')}). "
@@ -469,29 +487,21 @@ class LexaChatView(APIView):
         
         project_context = None
         if project_id:
+            if not user:
+                return Response({'error': 'Please log in again so I can access that project context.'}, status=status.HTTP_401_UNAUTHORIZED)
             try:
                 project = Project.objects.get(id=project_id)
-                if request.user not in [project.client, project.freelancer]:
+                if user not in [project.client, project.freelancer]:
                     return Response({'error': 'Not authorized for this project'}, status=status.HTTP_403_FORBIDDEN)
                 project_context = build_project_dispute_context(project)
             except Project.DoesNotExist:
                 return Response({'error': 'Project not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        if project_context and any(
-            keyword in message_lower
-            for keyword in ['dispute', 'issue', 'problem', 'analyze', 'analyse', 'refund', 'release', 'deliverable', 'payment']
-        ):
-            return Response({'reply': get_local_dispute_guidance(project_context, message)})
-                
         try:
             response_text = get_lexa_response(message, project_context)
         except Exception as e:
             logger.exception("Lexa project chat failed")
-            response_text = (
-                "I can see the selected project, but the AI service failed while preparing the analysis. "
-                "Please check the project status, contract, deliverables, and any rejection notes first. "
-                f"Technical detail: {str(e)}"
-            )
+            return Response({'error': f'Gemini request failed: {str(e)}'}, status=status.HTTP_502_BAD_GATEWAY)
         return Response({'reply': response_text})
 
 class ProposalViewSet(APIView):
