@@ -76,6 +76,11 @@ export const getProject = async (projectId) => {
     return response.data;
 };
 
+export const submitProjectReview = async (projectId, reviewData) => {
+    const response = await api.post(`/projects/${projectId}/review/`, reviewData);
+    return response.data;
+};
+
 export const getContract = async (projectId) => {
     const response = await api.get(`/projects/${projectId}/contract/`);
     return response.data;

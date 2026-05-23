@@ -19,7 +19,7 @@ from core.serializers import (
     DeliverableCreateSerializer, DisputeSerializer, DisputeCreateSerializer,
     ProposalSerializer, NotificationPreferenceSerializer, NotificationSerializer,
     SkillAssessmentQuestionSerializer, SkillAssessmentAttemptSerializer, VerifiedSkillSerializer,
-    WorkHistorySerializer
+    WorkHistorySerializer, ProjectReviewSerializer
 )
 # from core.mpesa_callbacks import process_deposit_callback, process_b2c_callback # Now in workflow_views
 from django.http import HttpResponse, JsonResponse
@@ -30,7 +30,8 @@ from core.authentication import JWTAuthentication
 from core.models import (
     CustomUser, Project, Contract, Escrow, Dispute, Deliverable, Proposal,
     NotificationPreference, Notification, Milestone, SkillAssessmentQuestion,
-    SkillAssessmentAttempt, SkillAssessmentAnswer, VerifiedSkill, WorkHistory
+    SkillAssessmentAttempt, SkillAssessmentAnswer, VerifiedSkill, WorkHistory,
+    ProjectReview
 )
 from core.contract_generator import generate_contract_text
 from core.escrow_sync import sync_escrow_from_provider
@@ -613,6 +614,51 @@ class ProposalPrefillView(APIView):
             logger.exception("Proposal prefill failed")
             return Response({'error': f'Gemini proposal draft failed: {str(exc)}'}, status=status.HTTP_502_BAD_GATEWAY)
         return Response(result, status=status.HTTP_200_OK)
+
+class ProjectReviewView(APIView):
+    authentication_classes = [JWTAuthentication]
+
+    def get(self, request, project_id):
+        try:
+            project = Project.objects.get(id=project_id)
+        except Project.DoesNotExist:
+            return Response({'error': 'Project not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if request.user not in [project.client, project.freelancer]:
+            return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            review = project.review
+        except ProjectReview.DoesNotExist:
+            return Response({'review': None}, status=status.HTTP_200_OK)
+
+        return Response(ProjectReviewSerializer(review).data, status=status.HTTP_200_OK)
+
+    def post(self, request, project_id):
+        try:
+            project = Project.objects.get(id=project_id)
+        except Project.DoesNotExist:
+            return Response({'error': 'Project not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if request.user != project.client:
+            return Response({'error': 'Only the client can review completed work.'}, status=status.HTTP_403_FORBIDDEN)
+        if project.status != 'completed':
+            return Response({'error': 'Reviews can be left after the project is completed.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not project.freelancer:
+            return Response({'error': 'This project has no hired freelancer to review.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        existing_review = ProjectReview.objects.filter(project=project).first()
+        serializer = ProjectReviewSerializer(existing_review, data=request.data, partial=bool(existing_review))
+        serializer.is_valid(raise_exception=True)
+        review = serializer.save(
+            project=project,
+            client=project.client,
+            freelancer=project.freelancer,
+        )
+        return Response(
+            ProjectReviewSerializer(review).data,
+            status=status.HTTP_200_OK if existing_review else status.HTTP_201_CREATED
+        )
 
 class AcceptProposalView(APIView):
     authentication_classes = [JWTAuthentication]

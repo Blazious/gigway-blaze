@@ -3,7 +3,8 @@ from decimal import Decimal
 from core.models import (
     CustomUser, Project, Contract, Escrow, 
     Deliverable, Dispute, Proposal, NotificationPreference, Notification, Milestone,
-    SkillAssessmentQuestion, SkillAssessmentAttempt, VerifiedSkill, WorkHistory
+    SkillAssessmentQuestion, SkillAssessmentAttempt, VerifiedSkill, WorkHistory,
+    ProjectReview
 )
 from core.competency_verification import evaluate_freelancer_for_project
 from core.freelancer_readiness import calculate_freelancer_readiness
@@ -141,6 +142,7 @@ class ProjectSerializer(serializers.ModelSerializer):
     client = UserSerializer(read_only=True)
     freelancer = UserSerializer(read_only=True)
     contract = ContractSerializer(read_only=True)
+    review = serializers.SerializerMethodField()
     
     # Adding escrow_status for legacy compatibility if frontend uses it directly from project
     escrow_status = serializers.SerializerMethodField()
@@ -151,13 +153,20 @@ class ProjectSerializer(serializers.ModelSerializer):
                  'scope_of_work', 'timeline', 'budget', 'required_skills',
                  'required_tools', 'experience_level', 'preferred_background',
                  'payment_mode', 'milestone_plan',
-                 'status', 'contract', 'escrow_status', 'created_at']
+                 'status', 'contract', 'escrow_status', 'review', 'created_at']
         read_only_fields = ['id', 'created_at', 'status']
 
     def get_escrow_status(self, obj):
         if hasattr(obj, 'contract') and hasattr(obj.contract, 'escrow'):
             return obj.contract.escrow.status
         return 'pending'
+
+    def get_review(self, obj):
+        try:
+            review = obj.review
+        except ProjectReview.DoesNotExist:
+            return None
+        return ProjectReviewSerializer(review).data
 
 class ProjectCreateSerializer(serializers.ModelSerializer):
     class Meta:
@@ -421,6 +430,26 @@ class ProposalSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         validated_data['freelancer'] = user
         return super().create(validated_data)
+
+class ProjectReviewSerializer(serializers.ModelSerializer):
+    client_name = serializers.CharField(source='client.email', read_only=True)
+    freelancer_name = serializers.CharField(source='freelancer.email', read_only=True)
+
+    class Meta:
+        model = ProjectReview
+        fields = [
+            'id', 'project', 'client', 'client_name', 'freelancer',
+            'freelancer_name', 'rating', 'comment', 'created_at', 'updated_at'
+        ]
+        read_only_fields = [
+            'id', 'project', 'client', 'client_name', 'freelancer',
+            'freelancer_name', 'created_at', 'updated_at'
+        ]
+
+    def validate_rating(self, value):
+        if value < 1 or value > 5:
+            raise serializers.ValidationError("Rating must be between 1 and 5.")
+        return value
 
 class NotificationPreferenceSerializer(serializers.ModelSerializer):
     class Meta:

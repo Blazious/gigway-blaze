@@ -1,6 +1,6 @@
-from django.db.models import Q
+from django.db.models import Avg, Q
 from django.utils import timezone
-from core.models import Dispute, Project, VerifiedSkill
+from core.models import Dispute, Project, ProjectReview, VerifiedSkill
 
 
 def _has_text(value):
@@ -66,18 +66,29 @@ def calculate_freelancer_readiness(user):
     completed_count = assigned_projects.filter(status='completed').count()
     active_or_completed_count = assigned_projects.exclude(status='open').count()
     dispute_count = Dispute.objects.filter(project__freelancer=user).count()
+    review_stats = ProjectReview.objects.filter(freelancer=user).aggregate(
+        average_rating=Avg('rating')
+    )
+    review_count = ProjectReview.objects.filter(freelancer=user).count()
+    average_rating = review_stats['average_rating'] or 0
 
     if completed_count >= 5:
-        performance_score = 20
+        performance_score = 14
     elif completed_count >= 3:
-        performance_score = 16
+        performance_score = 11
     elif completed_count >= 1:
-        performance_score = 10
+        performance_score = 7
     elif active_or_completed_count >= 1:
-        performance_score = 5
+        performance_score = 4
     else:
         performance_score = 0
 
+    if review_count:
+        performance_score += min(6, round((float(average_rating) / 5) * 6))
+        if review_count >= 3 and average_rating >= 4:
+            performance_score += 2
+
+    performance_score = min(20, performance_score)
     performance_score = max(0, performance_score - min(10, dispute_count * 5))
 
     score = min(100, profile_score + contact_score + proof_score + skill_verification_score + performance_score)
@@ -109,6 +120,8 @@ def calculate_freelancer_readiness(user):
             'completed_projects': completed_count,
             'assigned_projects': active_or_completed_count,
             'disputes': dispute_count,
+            'reviews': review_count,
+            'average_rating': round(float(average_rating), 1) if average_rating else 0,
             'proof_links': proof_link_count,
             'verified_skills': verified_skill_count,
         },

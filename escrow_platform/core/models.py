@@ -208,6 +208,34 @@ class Proposal(models.Model):
         ordering = ['-created_at']
         unique_together = ['project', 'freelancer']
 
+class ProjectReview(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    project = models.OneToOneField(
+        Project,
+        on_delete=models.CASCADE,
+        related_name='review'
+    )
+    client = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name='reviews_given'
+    )
+    freelancer = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name='reviews_received'
+    )
+    rating = models.PositiveSmallIntegerField()
+    comment = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.rating}/5 review for {self.project.title}"
+
+    class Meta:
+        ordering = ['-created_at']
+
 class Contract(models.Model):
     STATUS_CHOICES = [
         ('pending_signature', 'Pending Signature'),

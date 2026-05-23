@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ShieldCheck, Wallet, Star } from 'lucide-react';
 import { login, socialAuth } from '../api';
 import '../styles/Auth.css';
 
@@ -197,9 +197,21 @@ const LoginPage = () => {
 
     return (
         <div className="auth-container login-page">
-            <div className="auth-card">
+            <div className="auth-visual-loop" aria-hidden="true">
+                <div className="auth-visual-copy">
+                    <div className="auth-brand-mark"><ShieldCheck size={24} /> GigWay</div>
+                    <h1>Work moves when trust is already handled.</h1>
+                    <div className="auth-mini-points">
+                        <span><ShieldCheck size={15} /> Escrow</span>
+                        <span><Wallet size={15} /> M-Pesa</span>
+                        <span><Star size={15} /> Reviews</span>
+                    </div>
+                </div>
+            </div>
+
+            <div className="auth-card login-card-redesign">
                 <h2 className="auth-title">Welcome Back</h2>
-                <p className="auth-subtitle">Log in to manage your gigs</p>
+                <p className="auth-subtitle">Log in to manage projects, escrow, deliverables, and payouts.</p>
 
                 {error && <div className="error-msg">{error}</div>}
                 {successMsg && <div className="error-msg" style={{ borderColor: 'var(--primary)', backgroundColor: 'var(--primary-glow)', color: 'white' }}>{successMsg}</div>}

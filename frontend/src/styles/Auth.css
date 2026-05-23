@@ -9,10 +9,12 @@
 }
 
 .auth-container.login-page {
-    background-image: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('../assets/login_bg.png');
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
+    justify-content: space-between;
+    gap: clamp(1rem, 4vw, 4rem);
+    padding: clamp(1rem, 4vw, 3rem);
+    background:
+        linear-gradient(90deg, rgba(12, 17, 13, 0.94), rgba(12, 17, 13, 0.72)),
+        #111713;
 }
 
 .auth-container.signup-page {
@@ -24,11 +26,87 @@
 
 .auth-container.login-page .auth-card,
 .auth-container.signup-page .auth-card {
-    background: rgba(15, 23, 42, 0.75);
-    /* Deeper glass for readability */
+    background: rgba(15, 23, 42, 0.78);
     backdrop-filter: blur(25px);
     border: 1px solid rgba(255, 255, 255, 0.15);
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+}
+
+.auth-container.login-page .auth-card {
+    margin-left: auto;
+    margin-right: clamp(0rem, 4vw, 4rem);
+}
+
+.auth-visual-loop {
+    position: absolute;
+    inset: 0;
+    background-image:
+        linear-gradient(90deg, rgba(12, 17, 13, 0.88), rgba(12, 17, 13, 0.58), rgba(12, 17, 13, 0.22)),
+        url('../assets/freelancer.png');
+    background-size: cover;
+    background-position: center;
+    animation: authImageLoop 18s infinite;
+}
+
+@keyframes authImageLoop {
+    0%, 30% {
+        background-image:
+            linear-gradient(90deg, rgba(12, 17, 13, 0.88), rgba(12, 17, 13, 0.58), rgba(12, 17, 13, 0.22)),
+            url('../assets/freelancer.png');
+    }
+
+    34%, 64% {
+        background-image:
+            linear-gradient(90deg, rgba(12, 17, 13, 0.88), rgba(12, 17, 13, 0.58), rgba(12, 17, 13, 0.22)),
+            url('../assets/login_bg.png');
+    }
+
+    68%, 100% {
+        background-image:
+            linear-gradient(90deg, rgba(12, 17, 13, 0.88), rgba(12, 17, 13, 0.58), rgba(12, 17, 13, 0.22)),
+            url('../assets/signup_bg.png');
+    }
+}
+
+.auth-visual-copy {
+    position: absolute;
+    left: clamp(1.25rem, 5vw, 5rem);
+    bottom: clamp(2rem, 7vw, 6rem);
+    color: #fff;
+    max-width: 560px;
+}
+
+.auth-brand-mark {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    color: #f3c766;
+    font-weight: 900;
+    margin-bottom: 1rem;
+}
+
+.auth-visual-copy h1 {
+    font-size: clamp(2.3rem, 6vw, 5.4rem);
+    line-height: 0.95;
+    margin: 0 0 1.25rem;
+    letter-spacing: 0;
+}
+
+.auth-mini-points {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    color: rgba(255, 255, 255, 0.84);
+}
+
+.auth-mini-points span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.7rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.16);
 }
 
 .auth-container.login-page .auth-title,
@@ -69,6 +147,10 @@
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
     position: relative;
     z-index: 10;
+}
+
+.login-card-redesign {
+    border-radius: 0.75rem;
 }
 
 .auth-title {
@@ -186,3 +268,34 @@
 }
 
 /* Page specific styles remain in their files if not global */
+
+@media (max-width: 900px) {
+    .auth-container.login-page {
+        justify-content: center;
+        padding: 1rem;
+    }
+
+    .auth-container.login-page .auth-card {
+        margin: 0;
+    }
+
+    .auth-visual-copy {
+        top: 2rem;
+        bottom: auto;
+        max-width: 420px;
+    }
+
+    .auth-visual-copy h1 {
+        font-size: clamp(2rem, 10vw, 3.4rem);
+    }
+}
+
+@media (max-width: 560px) {
+    .auth-card {
+        padding: 1.35rem;
+    }
+
+    .auth-visual-copy {
+        display: none;
+    }
+}

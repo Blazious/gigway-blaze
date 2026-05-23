@@ -13,7 +13,7 @@ from core.views import (
     NotificationPreferenceView, NotificationListView, MarkNotificationReadView,
     DeliverableView,  # Keeping usage for listing if needed, or replace
     SkillAssessmentOptionsView, SkillAssessmentStartView, SkillAssessmentAnswerView,
-    WorkHistoryView, ProposalPrefillView
+    WorkHistoryView, ProposalPrefillView, ProjectReviewView
 )
 
 # Import NEW workflow views
@@ -49,6 +49,7 @@ urlpatterns = [
     # Projects
     path('api/projects/', ProjectViewSet.as_view(), name='project-list'),
     path('api/projects/<uuid:project_id>/', ProjectViewSet.as_view(), name='project-detail'),
+    path('api/projects/<uuid:project_id>/review/', ProjectReviewView.as_view(), name='project-review'),
     
     # Proposals
     path('api/proposals/', ProposalViewSet.as_view(), name='proposal-list'),

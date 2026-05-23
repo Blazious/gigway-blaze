@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Loader2, ArrowLeft, FileText, ShieldCheck, Briefcase } from 'lucide-react';
-import { getProject } from '../../api';
+import { Loader2, ArrowLeft, FileText, ShieldCheck, Briefcase, Star } from 'lucide-react';
+import { getProject, submitProjectReview } from '../../api';
 import ContractTab from './ContractTab';
 import DeliverableTab from './DeliverableTab';
 import ApplyModal from './ApplyModal';
@@ -14,6 +14,8 @@ const ProjectDetails = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('overview');
     const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
+    const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' });
+    const [isReviewSubmitting, setIsReviewSubmitting] = useState(false);
 
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const isClient = user.user_type === 'client';
@@ -27,12 +29,56 @@ const ProjectDetails = () => {
         try {
             const data = await getProject(id);
             setProject(data);
+            if (data.review) {
+                setReviewForm({
+                    rating: data.review.rating || 5,
+                    comment: data.review.comment || ''
+                });
+            }
         } catch (error) {
             console.error("Failed to fetch project details", error);
         } finally {
             setIsLoading(false);
         }
     };
+
+    const handleReviewSubmit = async (e) => {
+        e.preventDefault();
+        setIsReviewSubmitting(true);
+        try {
+            const review = await submitProjectReview(project.id, reviewForm);
+            setProject({ ...project, review });
+            alert('Review saved successfully.');
+        } catch (error) {
+            alert(error.response?.data?.error || 'Failed to save review.');
+        } finally {
+            setIsReviewSubmitting(false);
+        }
+    };
+
+    const renderStars = (rating, interactive = false) => (
+        <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+            {[1, 2, 3, 4, 5].map(value => (
+                <button
+                    key={value}
+                    type="button"
+                    onClick={() => interactive && setReviewForm({ ...reviewForm, rating: value })}
+                    disabled={!interactive}
+                    aria-label={`${value} star${value > 1 ? 's' : ''}`}
+                    style={{
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        cursor: interactive ? 'pointer' : 'default',
+                        color: value <= rating ? '#f59e0b' : 'var(--glass-border)',
+                        display: 'inline-flex'
+                    }}
+                >
+                    <Star size={22} fill="currentColor" />
+                </button>
+            ))}
+        </div>
+    );
 
     if (isLoading) {
         return (
@@ -189,6 +235,61 @@ const ProjectDetails = () => {
                                 </div>
                             </div>
                         </div>
+
+                        {project.status === 'completed' && (
+                            <div className="feature-card" style={{ marginTop: '2rem' }}>
+                                <h3 style={{ fontSize: '1.25rem', marginBottom: '1rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem' }}>
+                                    Client Review
+                                </h3>
+
+                                {project.review ? (
+                                    <div>
+                                        {renderStars(project.review.rating)}
+                                        {project.review.comment ? (
+                                            <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, whiteSpace: 'pre-wrap', marginTop: '0.85rem' }}>
+                                                {project.review.comment}
+                                            </p>
+                                        ) : (
+                                            <p style={{ color: 'var(--text-secondary)', marginTop: '0.85rem' }}>No written comment.</p>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+                                        No review has been left yet.
+                                    </p>
+                                )}
+
+                                {isClient && project.client?.id === user.id && (
+                                    <form onSubmit={handleReviewSubmit} style={{ marginTop: '1.25rem' }}>
+                                        <label style={{ display: 'block', fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+                                            Rating
+                                        </label>
+                                        {renderStars(reviewForm.rating, true)}
+
+                                        <label style={{ display: 'block', fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '1rem', marginBottom: '0.5rem' }}>
+                                            Feedback
+                                        </label>
+                                        <textarea
+                                            className="form-input"
+                                            rows="4"
+                                            value={reviewForm.comment}
+                                            onChange={(e) => setReviewForm({ ...reviewForm, comment: e.target.value })}
+                                            placeholder="Share clear feedback about the quality, communication, and delivery."
+                                            style={{ resize: 'vertical' }}
+                                        />
+                                        <button
+                                            type="submit"
+                                            className="btn btn-primary"
+                                            disabled={isReviewSubmitting}
+                                            style={{ marginTop: '1rem' }}
+                                        >
+                                            {isReviewSubmitting ? <Loader2 className="animate-spin" size={18} /> : <Star size={18} />}
+                                            {project.review ? 'Update Review' : 'Leave Review'}
+                                        </button>
+                                    </form>
+                                )}
+                            </div>
+                        )}
 
                         {/* Apply Button for Freelancers */}
                         {!isClient && project.status === 'open' && (

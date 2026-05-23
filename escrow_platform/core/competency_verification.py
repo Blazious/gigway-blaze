@@ -1,6 +1,8 @@
 import re
+from django.db.models import Avg
 
 from core.link_verification import is_verified_external_url
+from core.models import ProjectReview
 
 
 MIN_VERIFICATION_SCORE = 55
@@ -93,7 +95,14 @@ def evaluate_freelancer_for_project(project, freelancer, proposal_data):
     proposal_matches = sorted(project_tokens & _tokens(proposal_text))
     proposal_score = round(min(15, (len(proposal_matches) / max(len(project_tokens), 1)) * 45))
 
-    total = min(100, skill_score + profession_score + evidence_score + proposal_score)
+    review_stats = ProjectReview.objects.filter(freelancer=freelancer).aggregate(average_rating=Avg('rating'))
+    average_rating = review_stats['average_rating'] or 0
+    review_count = ProjectReview.objects.filter(freelancer=freelancer).count()
+    review_score = 0
+    if review_count:
+        review_score = min(8, round((float(average_rating) / 5) * 8))
+
+    total = min(100, skill_score + profession_score + evidence_score + proposal_score + review_score)
     status = 'verified' if total >= MIN_VERIFICATION_SCORE else 'needs_review'
 
     return {
@@ -105,6 +114,9 @@ def evaluate_freelancer_for_project(project, freelancer, proposal_data):
             'profession_fit': profession_score,
             'qualification_evidence': evidence_score,
             'proposal_specificity': proposal_score,
+            'client_reviews': review_score,
+            'average_rating': round(float(average_rating), 1) if average_rating else 0,
+            'review_count': review_count,
             'matched_requirements': matched_tokens[:12],
             'proposal_requirement_matches': proposal_matches[:12],
         }
