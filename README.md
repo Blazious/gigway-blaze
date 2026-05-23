@@ -62,6 +62,42 @@ Add the frontend URL to the Django backend CORS/CSRF allowed origins and to any 
 https://gigway-two.vercel.app/auth/google/callback
 ```
 
+## Deploy Backend To Railway
+
+Deploy the Django backend as a Railway service from the same GitHub repo:
+
+- Service source: GitHub repo
+- Root directory: `escrow_platform`
+- Builder: Nixpacks
+- Build command: handled by `escrow_platform/railway.json`
+- Pre-deploy command: `python manage.py migrate`
+- Start command: `gunicorn escrow_platform.wsgi:application --bind 0.0.0.0:$PORT`
+- Health check path: `/api/health/`
+
+Add a Railway PostgreSQL database service, then set backend service variables. You can start from `escrow_platform/.env.example`; do not upload your real local `.env` to GitHub.
+
+Minimum required Railway variables:
+
+```env
+DEBUG=False
+SECRET_KEY=replace-with-a-long-random-django-secret
+ALLOWED_HOSTS=.railway.app,.up.railway.app
+CORS_ALLOWED_ORIGINS=https://gigway-two.vercel.app
+CSRF_TRUSTED_ORIGINS=https://gigway-two.vercel.app
+DATABASE_URL=${{Postgres.DATABASE_URL}}
+GEMINI_API_KEY=your-gemini-key
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+```
+
+Also add your payment/email variables from `escrow_platform/.env` as needed. After Railway generates a public domain, update:
+
+- Railway `ALLOWED_HOSTS`: add the exact backend domain if needed
+- Railway `MPESA_CALLBACK_BASE_URL`: `https://your-railway-backend-domain`
+- Vercel `VITE_API_BASE_URL`: `https://your-railway-backend-domain/api`
+- Google OAuth authorized JavaScript origins: `https://gigway-two.vercel.app`
+- Google OAuth redirect URI: `https://gigway-two.vercel.app/auth/google/callback`
+
 ## Manual Setup
 
 1. Install frontend dependencies:

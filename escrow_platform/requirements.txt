@@ -1,6 +1,9 @@
 Django==4.2
 djangorestframework==3.14
 django-cors-headers==4.0
+gunicorn==23.0.0
+whitenoise==6.8.2
+psycopg2-binary==2.9.10
 PyJWT==2.8
 requests
 pyngrok
