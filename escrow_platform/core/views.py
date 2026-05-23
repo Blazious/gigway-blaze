@@ -207,34 +207,46 @@ class WalletView(APIView):
 
     def get(self, request):
         user = request.user
-        
+
         if user.user_type == 'freelancer':
-            projects = Project.objects.filter(freelancer=user)
+            contracts = Contract.objects.filter(freelancer=user).select_related('project', 'escrow')
         else:
-            projects = Project.objects.filter(client=user)
-            
+            contracts = Contract.objects.filter(client=user).select_related('project', 'escrow')
+
         transactions = []
-        in_escrow = 0
-        total_earnings = 0
-        
-        # Updated Logic for new Escrow model (via Contract)
-        for project in projects:
-            if hasattr(project, 'contract') and hasattr(project.contract, 'escrow'):
-                escrow = project.contract.escrow
-                if escrow.status == 'held':
-                    in_escrow += escrow.amount
-                elif escrow.status == 'released':
-                    total_earnings += escrow.amount
-                    
-                transactions.append({
-                    'id': str(escrow.id),
-                    'project_title': project.title,
-                    'amount': escrow.amount,
-                    'status': escrow.status,
-                    'date': project.created_at,
-                    'receipt': escrow.mpesa_receipt or escrow.mpesa_release_receipt
-                })
-        
+        in_escrow = Decimal('0.00')
+        total_earnings = Decimal('0.00')
+
+        for contract in contracts:
+            try:
+                escrow = contract.escrow
+            except Escrow.DoesNotExist:
+                continue
+
+            try:
+                escrow = sync_escrow_from_provider(escrow)
+                contract.refresh_from_db()
+            except Exception as e:
+                logger.warning("Wallet escrow sync failed for %s: %s", escrow.id, str(e))
+
+            escrow_status = escrow.status
+            payment_status = contract.payment_status
+
+            if escrow_status in ['held', 'releasing'] or payment_status == 'escrowed':
+                in_escrow += escrow.amount
+            if escrow_status == 'released' or payment_status == 'released':
+                total_earnings += escrow.amount
+
+            transactions.append({
+                'id': str(escrow.id),
+                'project_title': contract.project.title,
+                'amount': escrow.amount,
+                'status': escrow_status,
+                'payment_status': payment_status,
+                'date': escrow.released_at or escrow.created_at or contract.project.created_at,
+                'receipt': escrow.mpesa_release_receipt or escrow.mpesa_receipt or escrow.confirmation_code
+            })
+
         return Response({
             'in_escrow': in_escrow,
             'total_earnings': total_earnings,
