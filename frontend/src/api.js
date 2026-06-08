@@ -174,9 +174,11 @@ export const downloadDeliverableFile = async (deliverableId) => {
 };
 
 // Updated: Single review endpoint
-export const approveDeliverable = async (deliverableId, confirmationCode = null) => {
+export const approveDeliverable = async (deliverableId, releaseData = {}) => {
     const payload = { action: 'approve' };
-    if (confirmationCode) payload.confirmation_code = confirmationCode;
+    if (releaseData.confirmationCode) payload.confirmation_code = releaseData.confirmationCode;
+    if (releaseData.releaseComment) payload.release_comment = releaseData.releaseComment;
+    if (releaseData.releaseExperience) payload.release_experience = releaseData.releaseExperience;
     const response = await api.post(`/deliverables/${deliverableId}/review/`, payload);
     return response.data;
 };

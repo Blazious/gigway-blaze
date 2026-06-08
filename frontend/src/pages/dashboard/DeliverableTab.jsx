@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, Upload, FileText, CheckCircle, XCircle, AlertCircle, Download, Link as LinkIcon, AlignLeft } from 'lucide-react';
+import { Loader2, Upload, FileText, CheckCircle, XCircle, AlertCircle, Download, Link as LinkIcon, AlignLeft, Smartphone, ExternalLink, Send } from 'lucide-react';
 import { getDeliverables, submitDeliverable, approveDeliverable, rejectDeliverable, getEscrowStatus, downloadDeliverableFile } from '../../api';
 import GigWayLoader from '../../components/GigWayLoader';
 
@@ -21,7 +21,9 @@ const DeliverableTab = ({ projectId, project, onDeliverableUpdate }) => {
     const [rejectionReason, setRejectionReason] = useState('');
     const [showRejectModal, setShowRejectModal] = useState(null);
     const [expandedText, setExpandedText] = useState({});
-    const [manualConfirmationCode, setManualConfirmationCode] = useState('');
+    const [releaseComment, setReleaseComment] = useState('');
+    const [releaseExperience, setReleaseExperience] = useState('positive');
+    const [manualReleaseInfo, setManualReleaseInfo] = useState(project?.contract?.escrow || null);
 
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const userType = user.user_type;
@@ -71,7 +73,8 @@ const DeliverableTab = ({ projectId, project, onDeliverableUpdate }) => {
             const data = await getEscrowStatus(projectId);
             if (data?.status) {
                 setEscrowStatus(data.status);
-                if (data.status === 'held' && onDeliverableUpdate) {
+                setManualReleaseInfo(prev => ({ ...(prev || {}), ...data }));
+                if (['held', 'released'].includes(data.status) && onDeliverableUpdate) {
                     onDeliverableUpdate();
                 }
                 return data.status;
@@ -175,29 +178,32 @@ const DeliverableTab = ({ projectId, project, onDeliverableUpdate }) => {
     };
 
     const handleApprove = async (deliverableId) => {
-        if (!confirm('Are you sure you want to approve this deliverable? This will release the escrow funds to the freelancer.')) {
+        if (!confirm('Approve this deliverable? You will complete the payout manually in eConfirm after this step.')) {
             return;
         }
 
         try {
-            const storedCode = project?.contract?.escrow?.confirmation_code || project?.contract?.escrow?.mpesa_receipt;
-            let codeToUse = storedCode;
-            if (!codeToUse) {
-                codeToUse = (manualConfirmationCode || '').trim();
-                if (!codeToUse) {
-                    alert('Enter your M-Pesa confirmation code first (from payment SMS).');
-                    return;
-                }
-            }
-
-            await approveDeliverable(deliverableId, codeToUse);
-            alert('Deliverable approved! Funds are being released to the freelancer.');
+            const response = await approveDeliverable(deliverableId, {
+                releaseComment: releaseComment.trim(),
+                releaseExperience,
+            });
+            setManualReleaseInfo(response.manual_release || response);
+            setEscrowStatus(response.status || 'releasing');
+            alert('Deliverable approved. Complete the release manually in eConfirm, then return here and check release status.');
             await fetchDeliverables();
             if (onDeliverableUpdate) onDeliverableUpdate();
-            setManualConfirmationCode('');
         } catch (error) {
             console.error('Failed to approve deliverable', error);
             alert(error.response?.data?.error || 'Failed to approve deliverable. Please try again.');
+        }
+    };
+
+    const handleCheckRelease = async () => {
+        const status = await fetchEscrowStatus();
+        if (status === 'released') {
+            alert('Release confirmed from eConfirm. Payment is released and reviews are open.');
+        } else if (status) {
+            alert('eConfirm has not confirmed the release yet. Complete the release there, then check again.');
         }
     };
 
@@ -260,6 +266,10 @@ const DeliverableTab = ({ projectId, project, onDeliverableUpdate }) => {
     };
 
     const fundsHeld = escrowStatus === 'held' || project?.contract?.payment_status === 'escrowed';
+    const releasePending = escrowStatus === 'releasing' || manualReleaseInfo?.manual_release_pending || project?.contract?.escrow?.manual_release_pending;
+    const releaseTransactionId = manualReleaseInfo?.transaction_id || manualReleaseInfo?.checkout_id || project?.contract?.escrow?.mpesa_checkout_request_id;
+    const releaseAmount = manualReleaseInfo?.amount || project?.contract?.escrow?.amount || project?.budget;
+    const econfirmPortalUrl = manualReleaseInfo?.portal_url || project?.contract?.escrow?.econfirm_portal_url || 'https://econfirm.co.ke';
     const projectAllowsSubmission = ['in_progress', 'assigned', 'deliverable_submitted', 'deliverable_approved'].includes((project?.status || '').toLowerCase());
     const actuallyCanSubmit = isFreelancer && fundsHeld && projectAllowsSubmission;
 
@@ -465,24 +475,134 @@ const DeliverableTab = ({ projectId, project, onDeliverableUpdate }) => {
 
             {/* Deliverables List */}
             <div>
-                {isClient && !(project?.contract?.escrow?.confirmation_code || project?.contract?.escrow?.mpesa_receipt) && (
+                {isClient && releasePending && (
                     <div style={{
-                        background: 'rgba(245, 158, 11, 0.1)',
-                        border: '1px solid rgba(245, 158, 11, 0.3)',
+                        background: 'var(--glass-bg)',
+                        border: '1px solid rgba(16, 185, 129, 0.35)',
                         borderRadius: '1rem',
-                        padding: '1rem',
-                        marginBottom: '1rem'
+                        padding: '1.25rem',
+                        marginBottom: '1.5rem',
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                        gap: '1rem',
+                        alignItems: 'stretch'
                     }}>
-                        <p style={{ marginBottom: '0.5rem', fontSize: '0.9rem' }}>
-                            M-Pesa confirmation code is required before release.
-                        </p>
-                        <input
-                            className="auth-input"
-                            placeholder="Enter M-Pesa confirmation code (e.g. BIG3Z8XQXW8XQ)"
-                            value={manualConfirmationCode}
-                            onChange={(e) => setManualConfirmationCode(e.target.value)}
-                            style={{ width: '100%' }}
-                        />
+                        <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.75rem' }}>
+                                <Smartphone size={22} color="#10b981" />
+                                <h3 style={{ fontSize: '1.1rem', margin: 0 }}>Manual eConfirm Release</h3>
+                            </div>
+                            <p style={{ color: 'var(--text-secondary)', lineHeight: 1.55, marginBottom: '1rem' }}>
+                                Approval is saved in GigWay. Open eConfirm, release this escrow manually, then come back and check the release status.
+                            </p>
+                            <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                                gap: '0.75rem',
+                                marginBottom: '1rem'
+                            }}>
+                                <div>
+                                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Transaction ID</div>
+                                    <div style={{ fontWeight: 700, overflowWrap: 'anywhere' }}>{releaseTransactionId || 'Pending sync'}</div>
+                                </div>
+                                <div>
+                                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Amount</div>
+                                    <div style={{ fontWeight: 700 }}>KES {parseFloat(releaseAmount || 0).toLocaleString()}</div>
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                                <a
+                                    className="btn btn-primary"
+                                    href={econfirmPortalUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{ display: 'inline-flex', gap: '0.5rem', alignItems: 'center' }}
+                                >
+                                    <ExternalLink size={18} />
+                                    Open eConfirm
+                                </a>
+                                <button
+                                    type="button"
+                                    className="btn btn-outline"
+                                    onClick={handleCheckRelease}
+                                    disabled={isCheckingEscrow}
+                                    style={{ display: 'inline-flex', gap: '0.5rem', alignItems: 'center' }}
+                                >
+                                    {isCheckingEscrow ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle size={18} />}
+                                    Check Release
+                                </button>
+                            </div>
+                        </div>
+                        <div style={{
+                            border: '1px solid var(--glass-border)',
+                            borderRadius: '1rem',
+                            overflow: 'hidden',
+                            background: '#f8fafc',
+                            color: '#111827',
+                            minHeight: '280px'
+                        }}>
+                            <div style={{
+                                background: '#050505',
+                                color: '#fff',
+                                padding: '0.75rem 0.9rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                fontSize: '0.8rem'
+                            }}>
+                                <span>Approve Release - eConfirm</span>
+                                <span>econfirm.co.ke</span>
+                            </div>
+                            <div style={{ padding: '1rem' }}>
+                                <div style={{ fontWeight: 800, marginBottom: '0.75rem', color: '#166534' }}>
+                                    Release KES {parseFloat(releaseAmount || 0).toLocaleString()}
+                                </div>
+                                <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#374151' }}>COMMENT</label>
+                                <div style={{
+                                    marginTop: '0.35rem',
+                                    minHeight: '58px',
+                                    border: '1px solid #d1d5db',
+                                    borderRadius: '0.75rem',
+                                    padding: '0.7rem',
+                                    color: '#6b7280',
+                                    fontSize: '0.85rem',
+                                    marginBottom: '0.85rem'
+                                }}>
+                                    {releaseComment.trim() || 'Optional notes about this release'}
+                                </div>
+                                <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#374151' }}>YOUR EXPERIENCE</label>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.45rem', marginTop: '0.45rem', marginBottom: '0.85rem' }}>
+                                    {['Positive', 'Neutral', 'Negative'].map(label => (
+                                        <div
+                                            key={label}
+                                            style={{
+                                                border: releaseExperience === label.toLowerCase() ? '2px solid #15803d' : '1px solid #d1d5db',
+                                                background: releaseExperience === label.toLowerCase() ? '#ecfdf5' : '#fff',
+                                                borderRadius: '0.65rem',
+                                                padding: '0.55rem 0.25rem',
+                                                textAlign: 'center',
+                                                fontSize: '0.75rem',
+                                                fontWeight: 700,
+                                                color: releaseExperience === label.toLowerCase() ? '#166534' : '#4b5563'
+                                            }}
+                                        >
+                                            {label}
+                                        </div>
+                                    ))}
+                                </div>
+                                <div style={{
+                                    border: '1px dashed #cbd5e1',
+                                    borderRadius: '0.75rem',
+                                    padding: '0.65rem',
+                                    textAlign: 'center'
+                                }}>
+                                    <div style={{ letterSpacing: '0.35rem', color: '#9ca3af', fontSize: '1.2rem', marginBottom: '0.55rem' }}>000000</div>
+                                    <div style={{ color: '#15803d', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                                        <Send size={16} /> Send OTP to phone
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 )}
                 <h3 style={{ fontSize: '1.25rem', marginBottom: '1.5rem' }}>
@@ -664,31 +784,73 @@ const DeliverableTab = ({ projectId, project, onDeliverableUpdate }) => {
 
                                 {/* Client Actions */}
                                 {isClient && deliverable.status === 'submitted' && (
-                                    <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-                                        <button
-                                            className="btn btn-primary"
-                                            onClick={() => handleApprove(deliverable.id)}
-                                            style={{ flex: 1, display: 'flex', justifyContent: 'center', gap: '0.5rem' }}
-                                        >
-                                            <CheckCircle size={18} />
-                                            Approve & Release Funds
-                                        </button>
-                                        <button
-                                            className="btn"
-                                            onClick={() => setShowRejectModal(deliverable.id)}
-                                            style={{
-                                                flex: 1,
-                                                background: 'rgba(239, 68, 68, 0.1)',
-                                                color: '#ef4444',
-                                                border: '1px solid rgba(239, 68, 68, 0.3)',
-                                                display: 'flex',
-                                                justifyContent: 'center',
-                                                gap: '0.5rem'
-                                            }}
-                                        >
-                                            <XCircle size={18} />
-                                            Reject
-                                        </button>
+                                    <div style={{ marginTop: '1.5rem' }}>
+                                        <div style={{
+                                            background: 'rgba(16, 185, 129, 0.08)',
+                                            border: '1px solid rgba(16, 185, 129, 0.22)',
+                                            borderRadius: '0.75rem',
+                                            padding: '1rem',
+                                            marginBottom: '1rem'
+                                        }}>
+                                            <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+                                                Quality comment
+                                            </label>
+                                            <textarea
+                                                className="auth-input"
+                                                value={releaseComment}
+                                                onChange={(e) => setReleaseComment(e.target.value)}
+                                                placeholder="Optional notes about the quality of work, handover, or delivery."
+                                                rows={3}
+                                                style={{ resize: 'vertical', marginBottom: '0.75rem' }}
+                                            />
+                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '0.5rem' }}>
+                                                {['positive', 'neutral', 'negative'].map(value => (
+                                                    <button
+                                                        key={value}
+                                                        type="button"
+                                                        onClick={() => setReleaseExperience(value)}
+                                                        style={{
+                                                            border: releaseExperience === value ? '1px solid #10b981' : '1px solid var(--glass-border)',
+                                                            background: releaseExperience === value ? 'rgba(16, 185, 129, 0.14)' : 'transparent',
+                                                            color: releaseExperience === value ? '#10b981' : 'var(--text-secondary)',
+                                                            borderRadius: '0.5rem',
+                                                            padding: '0.65rem',
+                                                            textTransform: 'capitalize',
+                                                            fontWeight: 700,
+                                                            cursor: 'pointer'
+                                                        }}
+                                                    >
+                                                        {value}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '1rem' }}>
+                                            <button
+                                                className="btn btn-primary"
+                                                onClick={() => handleApprove(deliverable.id)}
+                                                style={{ flex: 1, display: 'flex', justifyContent: 'center', gap: '0.5rem' }}
+                                            >
+                                                <CheckCircle size={18} />
+                                                Approve for Manual Release
+                                            </button>
+                                            <button
+                                                className="btn"
+                                                onClick={() => setShowRejectModal(deliverable.id)}
+                                                style={{
+                                                    flex: 1,
+                                                    background: 'rgba(239, 68, 68, 0.1)',
+                                                    color: '#ef4444',
+                                                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                                                    display: 'flex',
+                                                    justifyContent: 'center',
+                                                    gap: '0.5rem'
+                                                }}
+                                            >
+                                                <XCircle size={18} />
+                                                Reject
+                                            </button>
+                                        </div>
                                     </div>
                                 )}
                             </div>

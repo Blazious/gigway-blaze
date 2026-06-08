@@ -325,6 +325,11 @@ class Escrow(models.Model):
     confirmation_code = models.CharField(max_length=100, null=True, blank=True)
     mpesa_checkout_request_id = models.CharField(max_length=100, null=True, blank=True)
     mpesa_conversation_id = models.CharField(max_length=100, null=True, blank=True) # Check for B2C
+    client_approved_release_at = models.DateTimeField(null=True, blank=True)
+    manual_release_requested_at = models.DateTimeField(null=True, blank=True)
+    manual_release_synced_at = models.DateTimeField(null=True, blank=True)
+    client_release_comment = models.TextField(blank=True)
+    client_release_experience = models.CharField(max_length=20, blank=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
     released_at = models.DateTimeField(null=True, blank=True)

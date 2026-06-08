@@ -113,12 +113,25 @@ class UserProfileSerializer(serializers.ModelSerializer):
         return cleaned
 
 class EscrowSerializer(serializers.ModelSerializer):
+    manual_release_pending = serializers.SerializerMethodField()
+    econfirm_portal_url = serializers.SerializerMethodField()
+
     class Meta:
         model = Escrow
         fields = [
             'id', 'amount', 'status', 'mpesa_receipt', 'mpesa_release_receipt',
-            'confirmation_code', 'created_at', 'released_at'
+            'confirmation_code', 'mpesa_checkout_request_id', 'client_approved_release_at',
+            'manual_release_requested_at', 'manual_release_synced_at',
+            'client_release_comment', 'client_release_experience',
+            'manual_release_pending', 'econfirm_portal_url', 'created_at', 'released_at'
         ]
+
+    def get_manual_release_pending(self, obj):
+        return bool(obj.manual_release_requested_at and obj.status == 'releasing')
+
+    def get_econfirm_portal_url(self, obj):
+        import os
+        return os.getenv('ECONFIRM_PORTAL_URL', 'https://econfirm.co.ke')
 
 class MilestoneSerializer(serializers.ModelSerializer):
     class Meta:

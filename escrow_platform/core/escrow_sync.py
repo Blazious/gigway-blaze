@@ -28,6 +28,56 @@ def _state_from_payload(payload):
     return str(raw_state).lower()
 
 
+RELEASED_STATES = {
+    'complete',
+    'completed',
+    'completed_successfully',
+    'completion_successful',
+    'escrow_complete',
+    'escrow_completed',
+    'escrow_completed_successfully',
+    'released',
+    'release',
+    'release_complete',
+    'release_completed',
+    'closed',
+    'settled',
+    'paid_out',
+    'payout_complete',
+    'payout_completed',
+}
+
+
+def _normalize_status(value):
+    return str(value or '').strip().lower().replace('-', '_').replace(' ', '_')
+
+
+def econfirm_status_is_released(payload):
+    data = extract_econfirm_payload(payload)
+    values = [
+        data.get('status'),
+        data.get('state'),
+        data.get('display_status'),
+        data.get('status_text'),
+        data.get('status_label'),
+        data.get('escrow_status'),
+        data.get('transaction_status'),
+        data.get('message'),
+        data.get('title'),
+        data.get('summary'),
+    ]
+    normalized = [_normalize_status(value) for value in values if value]
+    return any(
+        value in RELEASED_STATES
+        or 'completed_successfully' in value
+        or 'escrow_completed' in value
+        or 'release_completed' in value
+        or 'payout_completed' in value
+        or 'released' in value
+        for value in normalized
+    )
+
+
 def _update_from_payload(escrow, payload, *, notify=False):
     confirmation_code = (
         payload.get('confirmation_code')
@@ -55,8 +105,8 @@ def _update_from_payload(escrow, payload, *, notify=False):
     contract = escrow.contract
     project = contract.project
 
-    is_funded_state = any(token in state for token in ['funded', 'held', 'complete', 'completed', 'paid', 'success'])
-    is_released_state = any(token in state for token in ['released', 'settled'])
+    is_funded_state = any(token in state for token in ['funded', 'held', 'paid', 'success'])
+    is_released_state = econfirm_status_is_released(payload)
     is_failed_state = any(token in state for token in ['failed', 'cancelled', 'canceled', 'expired'])
 
     if is_funded_state and escrow.status in ['pending', 'failed']:
@@ -80,6 +130,7 @@ def _update_from_payload(escrow, payload, *, notify=False):
         escrow.status = 'released'
         escrow.mpesa_release_receipt = release_reference
         escrow.released_at = timezone.now()
+        escrow.manual_release_synced_at = timezone.now()
         escrow.save()
 
         contract.payment_status = 'released'

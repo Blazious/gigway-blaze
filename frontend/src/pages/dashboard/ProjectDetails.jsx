@@ -20,7 +20,8 @@ const ProjectDetails = () => {
 
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const isClient = user.user_type === 'client';
-    const isOwner = isClient && project && project.client === user.id; // Note: You might need to adjust user.id match if API returns object or just ID
+    const projectClientId = project?.client?.id || project?.client;
+    const isOwner = isClient && project && projectClientId === user.id;
 
     useEffect(() => {
         fetchProjectDetails();
@@ -256,7 +257,7 @@ const ProjectDetails = () => {
                                     </p>
                                 )}
 
-                                {isClient && project.client?.id === user.id && (
+                                {isOwner && (
                                     <form onSubmit={handleReviewSubmit} style={{ marginTop: '1.25rem' }}>
                                         <label style={{ display: 'block', fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
                                             Rating

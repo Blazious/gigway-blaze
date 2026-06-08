@@ -15,7 +15,6 @@ from core.serializers import (
 )
 from core.intasend_gateway import (
     initiate_escrow_deposit,
-    release_escrow_funds,
 )
 from core.escrow_sync import process_econfirm_webhook, sync_escrow_from_provider
 from core.mpesa_callbacks import process_intasend_webhook
@@ -272,69 +271,72 @@ class DeliverableReviewView(APIView):
                  return Response({'error': 'Only client can review'}, status=status.HTTP_403_FORBIDDEN)
             
             if action == 'approve':
-                # User says: "Trigger: Client reviews... Approve... Immediate M-Pesa B2C Transfer"
+                # Manual eConfirm release: record approval locally, then guide the client to eConfirm.
                 
                 # Check Escrow Status
-                if not hasattr(contract, 'escrow') or contract.escrow.status != 'held':
+                if not hasattr(contract, 'escrow') or contract.escrow.status not in ['held', 'releasing']:
                     return Response({'error': 'No funds in escrow to release'}, status=status.HTTP_400_BAD_REQUEST)
                 
                 escrow = contract.escrow
                 
-                # Retrieve Freelancer Phone
-                freelancer = contract.project.freelancer
-                if not freelancer or not freelancer.phone_number:
-                     return Response({'error': 'Freelancer phone number not found'}, status=status.HTTP_400_BAD_REQUEST)
-                
-                formatted_phone = format_phone_number(freelancer.phone_number)
-                
-                # Update status to local 'approved' first?
-                # User says: "Client clicks Approve... Immediate B2C... Handle Callback -> Update Status"
-                # So we shouldn't mark as released yet.
-                
                 # Double check status to prevent double pay
                 if escrow.status == 'releasing':
-                     return Response({'error': 'Release already in progress'}, status=status.HTTP_400_BAD_REQUEST)
+                    return Response({
+                        'message': 'Release was already approved in the app. Complete the payout in eConfirm, then check release status.',
+                        'manual_release_required': True,
+                        'status': escrow.status,
+                        'manual_release': {
+                            'portal_url': os.getenv('ECONFIRM_PORTAL_URL', 'https://econfirm.co.ke'),
+                            'transaction_id': escrow.mpesa_checkout_request_id,
+                            'amount': str(escrow.amount),
+                        }
+                    }, status=status.HTTP_200_OK)
                 if not escrow.mpesa_checkout_request_id:
                     return Response({'error': 'Missing escrow transaction reference'}, status=status.HTTP_400_BAD_REQUEST)
 
                 try:
-                    # Refresh from provider to capture confirmation code if available.
+                    # Refresh from provider to avoid approving a stale/local-only escrow.
                     try:
                         escrow = _sync_escrow_from_provider(escrow)
                     except Exception as e:
-                        logger.warning(f"Could not refresh confirmation code before release: {str(e)}")
+                        logger.warning(f"Could not refresh escrow before manual release: {str(e)}")
 
-                    confirmation_code = request.data.get('confirmation_code') or escrow.confirmation_code
-                    if not confirmation_code:
-                        return Response(
-                            {'error': 'Missing confirmation code. Enter the M-Pesa confirmation code from the payment SMS.'},
-                            status=status.HTTP_400_BAD_REQUEST
-                        )
-
-                    # Release held funds using eConfirm transaction id
-                    tracking_id = release_escrow_funds(
-                        escrow.mpesa_checkout_request_id,
-                        confirmation_code=confirmation_code,
-                        notes='Client approved delivery'
-                    )
+                    if escrow.status != 'held':
+                        return Response({'error': 'Escrow is not funded yet.'}, status=status.HTTP_400_BAD_REQUEST)
                     
-                    # Store Conversation ID (Tracking ID)
-                    escrow.mpesa_conversation_id = tracking_id
-                    escrow.confirmation_code = confirmation_code
+                    now = timezone.now()
+                    escrow.client_approved_release_at = escrow.client_approved_release_at or now
+                    escrow.manual_release_requested_at = now
+                    escrow.client_release_comment = (request.data.get('release_comment') or '').strip()
+                    escrow.client_release_experience = (request.data.get('release_experience') or '').strip()[:20]
                     escrow.status = 'releasing'
-                    escrow.release_initiated_at = timezone.now()
                     escrow.save()
                     
                     deliverable.status = 'approved'
                     deliverable.approved = True
-                    deliverable.approved_at = timezone.now()
+                    deliverable.approved_at = now
                     deliverable.save()
                     
-                    return Response({'message': 'Approval recorded. Payment release initiated.', 'status': 'releasing'}, status=status.HTTP_200_OK)
+                    return Response({
+                        'message': 'Approval recorded. Complete the payout manually in eConfirm, then return and check release status.',
+                        'status': 'releasing',
+                        'manual_release_required': True,
+                        'manual_release': {
+                            'portal_url': os.getenv('ECONFIRM_PORTAL_URL', 'https://econfirm.co.ke'),
+                            'transaction_id': escrow.mpesa_checkout_request_id,
+                            'amount': str(escrow.amount),
+                            'instructions': [
+                                'Open eConfirm.',
+                                'Find this escrow transaction.',
+                                'Approve release to the freelancer.',
+                                'Return here and tap Check Release.'
+                            ],
+                        }
+                    }, status=status.HTTP_200_OK)
                     
                 except Exception as e:
-                    logger.exception("B2C Failed")
-                    return Response({'error': f"Payment release failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                    logger.exception("Manual release approval failed")
+                    return Response({'error': f"Manual release approval failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
             elif action == 'reject':
                 reason = request.data.get('reason')
@@ -456,7 +458,11 @@ class EscrowStatusView(APIView):
                 'status': escrow.status,
                 'amount': escrow.amount,
                 'checkout_id': escrow.mpesa_checkout_request_id,
-                'confirmation_code': escrow.confirmation_code
+                'confirmation_code': escrow.confirmation_code,
+                'manual_release_pending': bool(escrow.manual_release_requested_at and escrow.status == 'releasing'),
+                'manual_release_requested_at': escrow.manual_release_requested_at,
+                'manual_release_synced_at': escrow.manual_release_synced_at,
+                'portal_url': os.getenv('ECONFIRM_PORTAL_URL', 'https://econfirm.co.ke'),
             }, status=status.HTTP_200_OK)
             
         except (Contract.DoesNotExist, Escrow.DoesNotExist):
