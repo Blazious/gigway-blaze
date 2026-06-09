@@ -63,6 +63,12 @@ def _matches_allowed_domain(hostname, allowed_domains):
     )
 
 
+def _is_linkedin_profile_url(parsed):
+    hostname = (parsed.hostname or '').lower().removeprefix('www.')
+    path = (parsed.path or '').strip('/')
+    return hostname == 'linkedin.com' and path.lower().startswith('in/')
+
+
 def validate_external_url(url, *, allowed_domains=None, label='URL'):
     """
     Return a normalized URL only when it is syntactically valid, public, and reachable.
@@ -86,6 +92,9 @@ def validate_external_url(url, *, allowed_domains=None, label='URL'):
         raise ValidationError(f'{label} must be from {domains}.')
     if not _hostname_is_public(hostname):
         raise ValidationError(f'{label} must point to a public website.')
+
+    if _is_linkedin_profile_url(parsed):
+        return value
 
     if not getattr(settings, 'VERIFY_EXTERNAL_LINKS', True):
         return value

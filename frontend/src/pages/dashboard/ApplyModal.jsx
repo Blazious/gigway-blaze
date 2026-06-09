@@ -14,6 +14,54 @@ const getErrorMessage = (data) => {
     return null;
 };
 
+const modalStyles = {
+    panel: {
+        background: '#101827',
+        border: '1px solid rgba(148, 163, 184, 0.35)',
+        borderRadius: '1rem',
+        padding: '2rem',
+        width: '90%',
+        maxWidth: '500px',
+        position: 'relative',
+        maxHeight: '90vh',
+        overflowY: 'auto',
+        color: '#f8fafc',
+        boxShadow: '0 24px 80px rgba(0, 0, 0, 0.45)'
+    },
+    helper: {
+        color: '#dbeafe',
+        fontSize: '0.9rem',
+        marginBottom: '1.25rem'
+    },
+    label: {
+        color: '#f8fafc',
+        fontWeight: 700,
+        marginBottom: '0.45rem'
+    },
+    input: {
+        background: '#f8fafc',
+        color: '#0f172a',
+        border: '1px solid #cbd5e1',
+        borderRadius: '0.65rem',
+        width: '100%'
+    },
+    inputGroup: {
+        background: '#f8fafc',
+        border: '1px solid #cbd5e1',
+        borderRadius: '0.65rem',
+        color: '#334155'
+    },
+    note: {
+        border: '1px solid rgba(16,185,129,0.35)',
+        background: 'rgba(16,185,129,0.12)',
+        color: '#d1fae5',
+        borderRadius: '0.5rem',
+        padding: '0.75rem',
+        marginBottom: '1rem',
+        fontSize: '0.85rem'
+    }
+};
+
 const ApplyModal = ({ isOpen, onClose, project, onSuccess }) => {
     const [formData, setFormData] = useState({
         cover_letter: '',
@@ -79,15 +127,11 @@ const ApplyModal = ({ isOpen, onClose, project, onSuccess }) => {
             background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center',
             zIndex: 1000, backdropFilter: 'blur(5px)'
         }}>
-            <div style={{
-                background: 'var(--card-bg)', border: '1px solid var(--glass-border)',
-                borderRadius: '1rem', padding: '2rem', width: '90%', maxWidth: '500px',
-                position: 'relative', maxHeight: '90vh', overflowY: 'auto'
-            }}>
+            <div style={modalStyles.panel}>
                 <h2 className="section-title" style={{ textAlign: 'left', marginBottom: '1rem' }}>Apply to {project.title}</h2>
                 <div style={{
                     display: 'flex', alignItems: 'flex-start', gap: '0.75rem',
-                    color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.25rem'
+                    ...modalStyles.helper
                 }}>
                     <ShieldCheck size={20} style={{ color: '#10b981', flexShrink: 0, marginTop: '0.1rem' }} />
                     <span>GigWay will score your proposal fit for the client, but low scores will not block your application.</span>
@@ -103,21 +147,13 @@ const ApplyModal = ({ isOpen, onClose, project, onSuccess }) => {
                     {isPrefilling ? 'Asking Gemini...' : 'Draft from My Work History'}
                 </button>
                 {(formData.ai_most_relevant_role || formData.ai_matched_skills.length > 0) && (
-                    <div style={{
-                        border: '1px solid rgba(16,185,129,0.3)',
-                        background: 'rgba(16,185,129,0.08)',
-                        color: 'var(--text-secondary)',
-                        borderRadius: '0.5rem',
-                        padding: '0.75rem',
-                        marginBottom: '1rem',
-                        fontSize: '0.85rem'
-                    }}>
+                    <div style={modalStyles.note}>
                         {formData.ai_most_relevant_role && (
-                            <div><strong style={{ color: 'var(--text-primary)' }}>Most relevant role:</strong> {formData.ai_most_relevant_role}</div>
+                            <div><strong style={{ color: '#ffffff' }}>Most relevant role:</strong> {formData.ai_most_relevant_role}</div>
                         )}
                         {formData.ai_matched_skills.length > 0 && (
                             <div style={{ marginTop: '0.35rem' }}>
-                                <strong style={{ color: 'var(--text-primary)' }}>Matched skills:</strong> {formData.ai_matched_skills.join(', ')}
+                                <strong style={{ color: '#ffffff' }}>Matched skills:</strong> {formData.ai_matched_skills.join(', ')}
                             </div>
                         )}
                     </div>
@@ -134,8 +170,8 @@ const ApplyModal = ({ isOpen, onClose, project, onSuccess }) => {
 
                 <form onSubmit={handleSubmit}>
                     <div className="form-group">
-                        <label className="form-label">Your Bid (KES)</label>
-                        <div className="input-group">
+                        <label className="form-label" style={modalStyles.label}>Your Bid (KES)</label>
+                        <div className="input-group" style={modalStyles.inputGroup}>
                             <DollarSign size={20} />
                             <input
                                 type="number"
@@ -144,12 +180,13 @@ const ApplyModal = ({ isOpen, onClose, project, onSuccess }) => {
                                 value={formData.bid_amount}
                                 onChange={(e) => setFormData({ ...formData, bid_amount: e.target.value })}
                                 required
+                                style={{ ...modalStyles.input, border: 'none' }}
                             />
                         </div>
                     </div>
 
                     <div className="form-group">
-                        <label className="form-label">Cover Letter</label>
+                        <label className="form-label" style={modalStyles.label}>Cover Letter</label>
                         <textarea
                             className="form-input"
                             rows="4"
@@ -157,11 +194,12 @@ const ApplyModal = ({ isOpen, onClose, project, onSuccess }) => {
                             value={formData.cover_letter}
                             onChange={(e) => setFormData({ ...formData, cover_letter: e.target.value })}
                             required
+                            style={modalStyles.input}
                         ></textarea>
                     </div>
 
                     <div className="form-group">
-                        <label className="form-label">Relevant Experience</label>
+                        <label className="form-label" style={modalStyles.label}>Relevant Experience</label>
                         <textarea
                             className="form-input"
                             rows="3"
@@ -169,11 +207,12 @@ const ApplyModal = ({ isOpen, onClose, project, onSuccess }) => {
                             value={formData.relevant_experience}
                             onChange={(e) => setFormData({ ...formData, relevant_experience: e.target.value })}
                             required
+                            style={modalStyles.input}
                         ></textarea>
                     </div>
 
                     <div className="form-group">
-                        <label className="form-label">Qualifications / Competencies</label>
+                        <label className="form-label" style={modalStyles.label}>Qualifications / Competencies</label>
                         <textarea
                             className="form-input"
                             rows="3"
@@ -181,17 +220,19 @@ const ApplyModal = ({ isOpen, onClose, project, onSuccess }) => {
                             value={formData.qualification_summary}
                             onChange={(e) => setFormData({ ...formData, qualification_summary: e.target.value })}
                             required
+                            style={modalStyles.input}
                         ></textarea>
                     </div>
 
                     <div className="form-group">
-                        <label className="form-label">Portfolio or Proof Link</label>
+                        <label className="form-label" style={modalStyles.label}>Portfolio or Proof Link</label>
                         <input
                             type="url"
                             className="form-input"
-                            placeholder="https://..."
+                            placeholder="https://www.linkedin.com/in/your-profile/"
                             value={formData.portfolio_url}
                             onChange={(e) => setFormData({ ...formData, portfolio_url: e.target.value })}
+                            style={modalStyles.input}
                         />
                     </div>
 
